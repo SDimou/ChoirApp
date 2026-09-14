@@ -14,12 +14,13 @@ from database import (
     remove_kommati_apo_ekdilosi,
     set_parousia,
 )
+from utils import GREEK_MONTHS, format_date, person_label
 
 st.title("📅 Πρόβες & Συναυλίες")
 
 
 def _atomo_label(row):
-    return f"{row['Eponymo']} {row['Onoma']}"
+    return person_label(row["Onoma"], row["Eponymo"])
 
 
 @st.dialog("➕ Εισαγωγή Πρόβας / Συναυλίας", width="large")
@@ -28,7 +29,7 @@ def new_ekdilosi_dialog():
 
     col1, col2 = st.columns(2)
     with col1:
-        imerominia = st.date_input("Ημερομηνία")
+        imerominia = st.date_input("Ημερομηνία", format="DD/MM/YYYY")
     with col2:
         titlos = st.text_input("Τίτλος Συναυλίας") if event_type == "Συναυλία" else None
 
@@ -68,7 +69,7 @@ def new_ekdilosi_dialog():
 @st.dialog("🔎 Στοιχεία Εκδήλωσης", width="large")
 def view_ekdilosi_dialog(ekdilosi_id, row):
     kind = "Πρόβα" if row["EventType"] == "P" else "Συναυλία"
-    st.subheader(f"{kind} — {row['Imerominia'].strftime('%d/%m/%Y')}")
+    st.subheader(f"{kind} — {format_date(row['Imerominia'])}")
     if row["EventType"] == "S":
         st.write(f"**Τίτλος:** {row['Titlos']}")
         if pd.notnull(row["Xoros"]):
@@ -86,15 +87,15 @@ def view_ekdilosi_dialog(ekdilosi_id, row):
             df_symmetoxes = fetch_symmetoxes(ekdilosi_id)
             parousia_map = dict(zip(df_symmetoxes["AtomoID"], df_symmetoxes["Parousia"]))
 
-            df_view = df_atoma[["AtomoID", "Eponymo", "Onoma"]].copy()
+            df_view = df_atoma[["AtomoID", "Onoma", "Eponymo"]].copy()
             df_view["Συμμετείχε"] = df_view["AtomoID"].map(lambda x: bool(parousia_map.get(x, False)))
 
             edited = st.data_editor(
                 df_view,
                 column_config={
                     "AtomoID": None,
-                    "Eponymo": st.column_config.TextColumn("Επώνυμο", disabled=True),
                     "Onoma": st.column_config.TextColumn("Όνομα", disabled=True),
+                    "Eponymo": st.column_config.TextColumn("Επώνυμο", disabled=True),
                     "Συμμετείχε": st.column_config.CheckboxColumn("Συμμετείχε"),
                 },
                 hide_index=True,
@@ -150,16 +151,40 @@ st.subheader("📋 Λίστα Προβών & Συναυλιών")
 
 df_ekd = fetch_ekdiloseis()
 
-if df_ekd.empty:
-    st.info("Δεν υπάρχουν ακόμα εκδηλώσεις.")
+type_filter = st.segmented_control(
+    "Τύπος", ["Όλα", "Πρόβες", "Συναυλίες"], default="Όλα", key="ekd_type_filter"
+)
+
+month_options = ["Όλοι"]
+if not df_ekd.empty:
+    periods = sorted({(d.year, d.month) for d in df_ekd["Imerominia"]}, reverse=True)
+    month_options += [f"{GREEK_MONTHS[m - 1]} {y}" for y, m in periods]
+month_filter = st.selectbox("Μήνας", month_options, key="ekd_month_filter")
+
+df_shown = df_ekd
+if type_filter == "Πρόβες":
+    df_shown = df_shown[df_shown["EventType"] == "P"]
+elif type_filter == "Συναυλίες":
+    df_shown = df_shown[df_shown["EventType"] == "S"]
+if month_filter != "Όλοι":
+    month_name, year_str = month_filter.rsplit(" ", 1)
+    month_num = GREEK_MONTHS.index(month_name) + 1
+    year_num = int(year_str)
+    df_shown = df_shown[
+        (df_shown["Imerominia"].apply(lambda d: d.year) == year_num)
+        & (df_shown["Imerominia"].apply(lambda d: d.month) == month_num)
+    ]
+
+if df_shown.empty:
+    st.info("Δεν υπάρχουν εκδηλώσεις για τα επιλεγμένα φίλτρα.")
 else:
-    for _, row in df_ekd.iterrows():
+    for _, row in df_shown.iterrows():
         with st.container(border=True):
             cols = st.columns([1.3, 1.3, 2.5, 2, 1.4, 1.2, 1.4])
             kind_icon = "🎤" if row["EventType"] == "P" else "🎭"
             kind = "Πρόβα" if row["EventType"] == "P" else "Συναυλία"
             cols[0].markdown(f"{kind_icon} **{kind}**")
-            cols[1].write(row["Imerominia"].strftime("%d/%m/%Y"))
+            cols[1].write(format_date(row["Imerominia"]))
             cols[2].write(row["Titlos"] if pd.notnull(row["Titlos"]) else "—")
             cols[3].write(row["Xoros"] if pd.notnull(row["Xoros"]) else "—")
             cols[4].write(f"👥 {int(row['ParousesCount'])}")
