@@ -16,6 +16,40 @@ foni_options = {
 }
 foni_id_to_label = {v: k for k, v in foni_options.items()}
 
+
+@st.dialog("➕ Εισαγωγή Χορωδού", width="large")
+def new_atomo_dialog():
+    col1, col2 = st.columns(2)
+    with col1:
+        onoma = st.text_input("Όνομα")
+    with col2:
+        eponymo = st.text_input("Επώνυμο")
+
+    foni_label = st.selectbox("Φωνή", ["—"] + list(foni_options.keys()))
+
+    col3, col4 = st.columns(2)
+    with col3:
+        kinito = st.text_input("Κινητό")
+    with col4:
+        statero = st.text_input("Σταθερό")
+
+    email = st.text_input("Email")
+
+    if st.button("💾 Δημιουργία", width="stretch"):
+        if not onoma or not eponymo:
+            st.error("Το όνομα και το επώνυμο είναι υποχρεωτικά.")
+            st.stop()
+        foni_id = foni_options.get(foni_label)
+        add_atomo(eponymo, onoma, kinito or None, statero or None, email or None, foni_id)
+        st.success("Ο χορωδός προστέθηκε!")
+        st.rerun()
+
+
+if st.button("➕ Εισαγωγή Χορωδού"):
+    new_atomo_dialog()
+
+st.divider()
+
 df_atoma = fetch_atoma()
 df_atoma["Φωνή"] = df_atoma["FoniID"].map(foni_id_to_label)
 df_atoma = df_atoma.sort_values(

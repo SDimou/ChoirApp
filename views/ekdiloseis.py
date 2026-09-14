@@ -155,7 +155,7 @@ if df_ekd.empty:
     st.info("Δεν υπάρχουν ακόμα εκδηλώσεις.")
 else:
     type_filter = st.segmented_control(
-        "Τύπος", ["Όλα", "Πρόβες", "Συναυλίες"], default="Όλα", required=True, key="ekd_type_filter"
+        "Τύπος", ["Όλα", "Πρόβες", "Συναυλίες"], default="Όλα", key="ekd_type_filter"
     )
 
     periods = sorted({(d.year, d.month) for d in df_ekd["Imerominia"]}, reverse=True)
@@ -179,16 +179,36 @@ else:
     if df_shown.empty:
         st.info("Δεν υπάρχουν εκδηλώσεις για τα επιλεγμένα φίλτρα.")
     else:
-        for _, row in df_shown.iterrows():
-            with st.container(border=True):
-                cols = st.columns([1.3, 1.3, 2.5, 2, 1.4, 1.2, 1.4])
-                kind_icon = "🎤" if row["EventType"] == "P" else "🎭"
-                kind = "Πρόβα" if row["EventType"] == "P" else "Συναυλία"
-                cols[0].markdown(f"{kind_icon} **{kind}**")
-                cols[1].write(format_date(row["Imerominia"]))
-                cols[2].write(row["Titlos"] if pd.notnull(row["Titlos"]) else "—")
-                cols[3].write(row["Xoros"] if pd.notnull(row["Xoros"]) else "—")
-                cols[4].write(f"👥 {int(row['ParousesCount'])}")
-                cols[5].write(f"🎼 {int(row['KommatiaCount'])}")
-                if cols[6].button("🔍 Προβολή", key=f"view_{row['EkdilosiID']}", width="stretch"):
-                    view_ekdilosi_dialog(int(row["EkdilosiID"]), row)
+        df_shown = df_shown.sort_values("Imerominia", ascending=False).reset_index(drop=True)
+
+        table_df = pd.DataFrame({
+            "EkdilosiID": df_shown["EkdilosiID"],
+            "Τύπος": df_shown["EventType"].map({"P": "🎤 Πρόβα", "S": "🎭 Συναυλία"}),
+            "Ημερομηνία": df_shown["Imerominia"],
+            "Τίτλος": df_shown["Titlos"],
+            "Χώρος": df_shown["Xoros"],
+            "Συμμετέχοντες": df_shown["ParousesCount"].astype(int),
+            "Κομμάτια": df_shown["KommatiaCount"].astype(int),
+        })
+
+        event = st.dataframe(
+            table_df,
+            column_config={
+                "EkdilosiID": None,
+                "Ημερομηνία": st.column_config.DateColumn("Ημερομηνία", format="DD/MM/YYYY"),
+                "Συμμετέχοντες": st.column_config.NumberColumn("👥 Συμμετέχοντες"),
+                "Κομμάτια": st.column_config.NumberColumn("🎼 Κομμάτια"),
+            },
+            hide_index=True,
+            width="stretch",
+            height=480,
+            on_select="rerun",
+            selection_mode="single-row",
+            key="ekd_table",
+        )
+
+        selected_rows = event.selection["rows"]
+        if selected_rows:
+            sel_row = df_shown.iloc[selected_rows[0]]
+            if st.button("🔍 Προβολή επιλεγμένης εγγραφής", width="stretch"):
+                view_ekdilosi_dialog(int(sel_row["EkdilosiID"]), sel_row)
