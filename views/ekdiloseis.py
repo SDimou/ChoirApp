@@ -151,43 +151,44 @@ st.subheader("📋 Λίστα Προβών & Συναυλιών")
 
 df_ekd = fetch_ekdiloseis()
 
-type_filter = st.segmented_control(
-    "Τύπος", ["Όλα", "Πρόβες", "Συναυλίες"], default="Όλα", key="ekd_type_filter"
-)
-
-month_options = ["Όλοι"]
-if not df_ekd.empty:
-    periods = sorted({(d.year, d.month) for d in df_ekd["Imerominia"]}, reverse=True)
-    month_options += [f"{GREEK_MONTHS[m - 1]} {y}" for y, m in periods]
-month_filter = st.selectbox("Μήνας", month_options, key="ekd_month_filter")
-
-df_shown = df_ekd
-if type_filter == "Πρόβες":
-    df_shown = df_shown[df_shown["EventType"] == "P"]
-elif type_filter == "Συναυλίες":
-    df_shown = df_shown[df_shown["EventType"] == "S"]
-if month_filter != "Όλοι":
-    month_name, year_str = month_filter.rsplit(" ", 1)
-    month_num = GREEK_MONTHS.index(month_name) + 1
-    year_num = int(year_str)
-    df_shown = df_shown[
-        (df_shown["Imerominia"].apply(lambda d: d.year) == year_num)
-        & (df_shown["Imerominia"].apply(lambda d: d.month) == month_num)
-    ]
-
-if df_shown.empty:
-    st.info("Δεν υπάρχουν εκδηλώσεις για τα επιλεγμένα φίλτρα.")
+if df_ekd.empty:
+    st.info("Δεν υπάρχουν ακόμα εκδηλώσεις.")
 else:
-    for _, row in df_shown.iterrows():
-        with st.container(border=True):
-            cols = st.columns([1.3, 1.3, 2.5, 2, 1.4, 1.2, 1.4])
-            kind_icon = "🎤" if row["EventType"] == "P" else "🎭"
-            kind = "Πρόβα" if row["EventType"] == "P" else "Συναυλία"
-            cols[0].markdown(f"{kind_icon} **{kind}**")
-            cols[1].write(format_date(row["Imerominia"]))
-            cols[2].write(row["Titlos"] if pd.notnull(row["Titlos"]) else "—")
-            cols[3].write(row["Xoros"] if pd.notnull(row["Xoros"]) else "—")
-            cols[4].write(f"👥 {int(row['ParousesCount'])}")
-            cols[5].write(f"🎼 {int(row['KommatiaCount'])}")
-            if cols[6].button("🔍 Προβολή", key=f"view_{row['EkdilosiID']}", width="stretch"):
-                view_ekdilosi_dialog(int(row["EkdilosiID"]), row)
+    type_filter = st.segmented_control(
+        "Τύπος", ["Όλα", "Πρόβες", "Συναυλίες"], default="Όλα", required=True, key="ekd_type_filter"
+    )
+
+    periods = sorted({(d.year, d.month) for d in df_ekd["Imerominia"]}, reverse=True)
+    month_options = ["Όλοι"] + [f"{GREEK_MONTHS[m - 1]} {y}" for y, m in periods]
+    month_filter = st.selectbox("Μήνας", month_options, key="ekd_month_filter")
+
+    df_shown = df_ekd
+    if type_filter == "Πρόβες":
+        df_shown = df_shown[df_shown["EventType"] == "P"]
+    elif type_filter == "Συναυλίες":
+        df_shown = df_shown[df_shown["EventType"] == "S"]
+    if month_filter != "Όλοι":
+        month_name, year_str = month_filter.rsplit(" ", 1)
+        month_num = GREEK_MONTHS.index(month_name) + 1
+        year_num = int(year_str)
+        df_shown = df_shown[
+            (df_shown["Imerominia"].apply(lambda d: d.year) == year_num)
+            & (df_shown["Imerominia"].apply(lambda d: d.month) == month_num)
+        ]
+
+    if df_shown.empty:
+        st.info("Δεν υπάρχουν εκδηλώσεις για τα επιλεγμένα φίλτρα.")
+    else:
+        for _, row in df_shown.iterrows():
+            with st.container(border=True):
+                cols = st.columns([1.3, 1.3, 2.5, 2, 1.4, 1.2, 1.4])
+                kind_icon = "🎤" if row["EventType"] == "P" else "🎭"
+                kind = "Πρόβα" if row["EventType"] == "P" else "Συναυλία"
+                cols[0].markdown(f"{kind_icon} **{kind}**")
+                cols[1].write(format_date(row["Imerominia"]))
+                cols[2].write(row["Titlos"] if pd.notnull(row["Titlos"]) else "—")
+                cols[3].write(row["Xoros"] if pd.notnull(row["Xoros"]) else "—")
+                cols[4].write(f"👥 {int(row['ParousesCount'])}")
+                cols[5].write(f"🎼 {int(row['KommatiaCount'])}")
+                if cols[6].button("🔍 Προβολή", key=f"view_{row['EkdilosiID']}", width="stretch"):
+                    view_ekdilosi_dialog(int(row["EkdilosiID"]), row)

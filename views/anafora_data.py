@@ -70,7 +70,7 @@ with tab_synthetes:
         new_onoma = st.text_input("Όνομα Συνθέτη")
     with col2:
         new_eponymo = st.text_input("Επώνυμο Συνθέτη")
-    if st.button("➕ Προσθήκη Συνθέτη", disabled=not new_eponymo):
+    if st.button("➕ Προσθήκη Συνθέτη", disabled=not new_eponymo, help="Το επώνυμο είναι υποχρεωτικό"):
         add_synthetis(new_eponymo, new_onoma or None)
         st.success("Ο συνθέτης προστέθηκε!")
         st.rerun()
@@ -101,7 +101,7 @@ with tab_stixourgoi:
         new_onoma = st.text_input("Όνομα Στιχουργού")
     with col2:
         new_eponymo = st.text_input("Επώνυμο Στιχουργού")
-    if st.button("➕ Προσθήκη Στιχουργού", disabled=not new_eponymo):
+    if st.button("➕ Προσθήκη Στιχουργού", disabled=not new_eponymo, help="Το επώνυμο είναι υποχρεωτικό"):
         add_stixourgos(new_eponymo, new_onoma or None)
         st.success("Ο στιχουργός προστέθηκε!")
         st.rerun()

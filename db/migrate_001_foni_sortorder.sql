@@ -22,5 +22,5 @@ SET SortOrder = CASE FoniSynt
     WHEN N'A'   THEN 3
     ELSE SortOrder
 END
-WHERE FoniSynt IN (N'S', N'BAL', N'A');
+WHERE FoniSynt IN (N'S', N'BAL', N'A') AND SortOrder = 0;
 GO
