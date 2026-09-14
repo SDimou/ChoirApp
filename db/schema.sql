@@ -65,6 +65,7 @@ CREATE TABLE dbo.Foni (
     FoniID      INT IDENTITY(1,1) NOT NULL,
     FoniSynt    NVARCHAR(20)      NOT NULL,   -- συντομογραφία, π.χ. "Σ1"
     FoniDescr   NVARCHAR(100)     NULL,       -- περιγραφή, π.χ. "Σοπράνο Α"
+    SortOrder   INT               NOT NULL DEFAULT (0),  -- σειρά εμφάνισης στα Χορωδοί
     CONSTRAINT PK_Foni PRIMARY KEY (FoniID)
 );
 GO
@@ -227,8 +228,8 @@ GO
    Seed data
    ===================================================================== */
 
-INSERT INTO dbo.Foni (FoniSynt, FoniDescr) VALUES
-    (N'S',   N'Soprano'),
-    (N'A',   N'Alto'),
-    (N'BAL', N'Baladeur');
+INSERT INTO dbo.Foni (FoniSynt, FoniDescr, SortOrder) VALUES
+    (N'S',   N'Soprano',  1),
+    (N'BAL', N'Baladeur', 2),
+    (N'A',   N'Alto',     3);
 GO

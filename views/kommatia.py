@@ -10,6 +10,7 @@ from database import (
     fetch_synthetes,
     update_kommati,
 )
+from utils import person_label
 
 st.title("🎼 Μουσικά Κομμάτια")
 
@@ -37,11 +38,11 @@ df_stixourgoi = fetch_stixourgoi()
 
 
 def _synthetis_label(row):
-    return f"{row['SynthetisEponymo']} {row['SynthetisOnoma'] or ''}".strip()
+    return person_label(row["SynthetisOnoma"], row["SynthetisEponymo"])
 
 
 def _stixourgos_label(row):
-    return f"{row['StixourgosEponymo']} {row['StixourgosOnoma'] or ''}".strip()
+    return person_label(row["StixourgosOnoma"], row["StixourgosEponymo"])
 
 
 synthetis_options = {_synthetis_label(row): row["SynthetisID"] for _, row in df_synthetes.iterrows()}

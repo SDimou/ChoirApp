@@ -52,20 +52,22 @@ def execute(query, params=None):
 # =========================================================================
 
 def fetch_foni():
-    return read_df("SELECT FoniID, FoniSynt, FoniDescr FROM Foni ORDER BY FoniSynt")
-
-
-def add_foni(foni_synt, foni_descr=None):
-    execute(
-        "INSERT INTO Foni (FoniSynt, FoniDescr) VALUES (:synt, :descr)",
-        {"synt": foni_synt, "descr": foni_descr},
+    return read_df(
+        "SELECT FoniID, FoniSynt, FoniDescr, SortOrder FROM Foni ORDER BY SortOrder, FoniSynt"
     )
 
 
-def update_foni(foni_id, foni_synt, foni_descr=None):
+def add_foni(foni_synt, foni_descr=None, sort_order=0):
     execute(
-        "UPDATE Foni SET FoniSynt = :synt, FoniDescr = :descr WHERE FoniID = :id",
-        {"synt": foni_synt, "descr": foni_descr, "id": foni_id},
+        "INSERT INTO Foni (FoniSynt, FoniDescr, SortOrder) VALUES (:synt, :descr, :sort_order)",
+        {"synt": foni_synt, "descr": foni_descr, "sort_order": sort_order},
+    )
+
+
+def update_foni(foni_id, foni_synt, foni_descr=None, sort_order=0):
+    execute(
+        "UPDATE Foni SET FoniSynt = :synt, FoniDescr = :descr, SortOrder = :sort_order WHERE FoniID = :id",
+        {"synt": foni_synt, "descr": foni_descr, "sort_order": sort_order, "id": foni_id},
     )
 
 
@@ -80,7 +82,7 @@ def delete_foni(foni_id):
 def fetch_atoma():
     query = """
         SELECT a.AtomoID, a.Eponymo, a.Onoma, a.KinitoTilefono,
-               a.StatheroTilefono, a.Email, a.FoniID, f.FoniDescr
+               a.StatheroTilefono, a.Email, a.FoniID, f.FoniDescr, f.SortOrder AS FoniSortOrder
         FROM Atomo a
         LEFT JOIN Foni f ON a.FoniID = f.FoniID
         ORDER BY a.Eponymo, a.Onoma
@@ -167,14 +169,14 @@ def fetch_kommatia():
         FROM Kommati k
         LEFT JOIN (
             SELECT ks.KommatiID,
-                   STRING_AGG(LTRIM(RTRIM(CONCAT(s.SynthetisEponymo, ' ', s.SynthetisOnoma))), ', ') AS Synthetes
+                   STRING_AGG(LTRIM(RTRIM(CONCAT(s.SynthetisOnoma, ' ', s.SynthetisEponymo))), ', ') AS Synthetes
             FROM KommatiaSynthetes ks
             JOIN Synthetis s ON ks.SynthetisID = s.SynthetisID
             GROUP BY ks.KommatiID
         ) syn ON syn.KommatiID = k.KommatiID
         LEFT JOIN (
             SELECT kst.KommatiID,
-                   STRING_AGG(LTRIM(RTRIM(CONCAT(st.StixourgosEponymo, ' ', st.StixourgosOnoma))), ', ') AS Stixourgoi
+                   STRING_AGG(LTRIM(RTRIM(CONCAT(st.StixourgosOnoma, ' ', st.StixourgosEponymo))), ', ') AS Stixourgoi
             FROM KommatiaStixourgoi kst
             JOIN Stixourgos st ON kst.StixourgosID = st.StixourgosID
             GROUP BY kst.KommatiID
