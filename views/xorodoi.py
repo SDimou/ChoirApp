@@ -18,15 +18,21 @@ foni_id_to_label = {v: k for k, v in foni_options.items()}
 
 df_atoma = fetch_atoma()
 df_atoma["Φωνή"] = df_atoma["FoniID"].map(foni_id_to_label)
+df_atoma = df_atoma.sort_values(
+    by=["FoniSortOrder", "Eponymo", "Onoma"], na_position="last"
+).reset_index(drop=True)
 
-display_cols = ["AtomoID", "Eponymo", "Onoma", "Φωνή", "KinitoTilefono", "StatheroTilefono", "Email"]
+foni_filter = st.selectbox("Φίλτρο φωνής", ["Όλες"] + list(foni_options.keys()))
+df_shown = df_atoma if foni_filter == "Όλες" else df_atoma[df_atoma["Φωνή"] == foni_filter]
+
+display_cols = ["AtomoID", "Onoma", "Eponymo", "Φωνή", "KinitoTilefono", "StatheroTilefono", "Email"]
 
 edited = st.data_editor(
-    df_atoma[display_cols],
+    df_shown[display_cols],
     column_config={
         "AtomoID": None,
-        "Eponymo": st.column_config.TextColumn("Επώνυμο", required=True),
         "Onoma": st.column_config.TextColumn("Όνομα", required=True),
+        "Eponymo": st.column_config.TextColumn("Επώνυμο", required=True),
         "Φωνή": st.column_config.SelectboxColumn("Φωνή", options=list(foni_options.keys())),
         "KinitoTilefono": st.column_config.TextColumn("Κινητό"),
         "StatheroTilefono": st.column_config.TextColumn("Σταθερό"),
@@ -38,7 +44,7 @@ edited = st.data_editor(
 )
 
 if st.button("💾 Αποθήκευση Αλλαγών"):
-    current_ids = set(df_atoma["AtomoID"])
+    current_ids = set(df_shown["AtomoID"])
     edited_ids = set(edited["AtomoID"].dropna())
 
     for atomo_id in current_ids - edited_ids:
