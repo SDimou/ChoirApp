@@ -14,6 +14,7 @@ from database import (
     fetch_synthetes,
     update_foni,
 )
+from utils import person_label
 
 st.title("⚙️ Στοιχεία Αναφοράς")
 
@@ -27,6 +28,9 @@ with tab_foni:
             "FoniID": None,
             "FoniSynt": st.column_config.TextColumn("Συντομογραφία", required=True),
             "FoniDescr": st.column_config.TextColumn("Περιγραφή"),
+            "SortOrder": st.column_config.NumberColumn(
+                "Σειρά ταξινόμησης", step=1, default=0
+            ),
         },
         num_rows="dynamic",
         width="stretch",
@@ -46,33 +50,36 @@ with tab_foni:
             if not row["FoniSynt"]:
                 continue
             descr = None if pd.isnull(row["FoniDescr"]) else row["FoniDescr"]
+            sort_order = 0 if pd.isnull(row["SortOrder"]) else int(row["SortOrder"])
             if pd.isnull(row["FoniID"]):
-                add_foni(row["FoniSynt"], descr)
+                add_foni(row["FoniSynt"], descr, sort_order)
             else:
-                update_foni(int(row["FoniID"]), row["FoniSynt"], descr)
+                update_foni(int(row["FoniID"]), row["FoniSynt"], descr, sort_order)
         st.success("Οι φωνές αποθηκεύτηκαν!")
         st.rerun()
 
 with tab_synthetes:
     df = fetch_synthetes()
     st.dataframe(
-        df.rename(columns={"SynthetisEponymo": "Επώνυμο", "SynthetisOnoma": "Όνομα"})[["Επώνυμο", "Όνομα"]],
+        df.rename(columns={"SynthetisEponymo": "Επώνυμο", "SynthetisOnoma": "Όνομα"})[["Όνομα", "Επώνυμο"]],
         width="stretch",
         hide_index=True,
     )
     col1, col2 = st.columns(2)
     with col1:
-        new_eponymo = st.text_input("Επώνυμο Συνθέτη")
-    with col2:
         new_onoma = st.text_input("Όνομα Συνθέτη")
+    with col2:
+        new_eponymo = st.text_input("Επώνυμο Συνθέτη")
     if st.button("➕ Προσθήκη Συνθέτη", disabled=not new_eponymo):
         add_synthetis(new_eponymo, new_onoma or None)
         st.success("Ο συνθέτης προστέθηκε!")
         st.rerun()
 
     if not df.empty:
-        label = lambda r: f"{r['SynthetisEponymo']} {r['SynthetisOnoma'] or ''}".strip()
-        options = {label(row): row["SynthetisID"] for _, row in df.iterrows()}
+        options = {
+            person_label(row["SynthetisOnoma"], row["SynthetisEponymo"]): row["SynthetisID"]
+            for _, row in df.iterrows()
+        }
         to_delete = st.selectbox("Διαγραφή συνθέτη:", list(options.keys()), key="del_synthetis_sb")
         if st.button("🗑️ Διαγραφή Συνθέτη"):
             try:
@@ -85,23 +92,25 @@ with tab_synthetes:
 with tab_stixourgoi:
     df = fetch_stixourgoi()
     st.dataframe(
-        df.rename(columns={"StixourgosEponymo": "Επώνυμο", "StixourgosOnoma": "Όνομα"})[["Επώνυμο", "Όνομα"]],
+        df.rename(columns={"StixourgosEponymo": "Επώνυμο", "StixourgosOnoma": "Όνομα"})[["Όνομα", "Επώνυμο"]],
         width="stretch",
         hide_index=True,
     )
     col1, col2 = st.columns(2)
     with col1:
-        new_eponymo = st.text_input("Επώνυμο Στιχουργού")
-    with col2:
         new_onoma = st.text_input("Όνομα Στιχουργού")
+    with col2:
+        new_eponymo = st.text_input("Επώνυμο Στιχουργού")
     if st.button("➕ Προσθήκη Στιχουργού", disabled=not new_eponymo):
         add_stixourgos(new_eponymo, new_onoma or None)
         st.success("Ο στιχουργός προστέθηκε!")
         st.rerun()
 
     if not df.empty:
-        label = lambda r: f"{r['StixourgosEponymo']} {r['StixourgosOnoma'] or ''}".strip()
-        options = {label(row): row["StixourgosID"] for _, row in df.iterrows()}
+        options = {
+            person_label(row["StixourgosOnoma"], row["StixourgosEponymo"]): row["StixourgosID"]
+            for _, row in df.iterrows()
+        }
         to_delete = st.selectbox("Διαγραφή στιχουργού:", list(options.keys()), key="del_stixourgos_sb")
         if st.button("🗑️ Διαγραφή Στιχουργού"):
             try:
