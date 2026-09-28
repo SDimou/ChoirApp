@@ -23,6 +23,10 @@ def _atomo_label(row):
     return person_label(row["Onoma"], row["Eponymo"])
 
 
+def _atomo_label_eponymo_prota(row):
+    return f"{row['Eponymo'] or ''} {row['Onoma'] or ''}".strip()
+
+
 @st.dialog("➕ Εισαγωγή Πρόβας / Συναυλίας", width="large")
 def new_ekdilosi_dialog():
     event_type = st.radio("Τύπος", ["Πρόβα", "Συναυλία"], horizontal=True)
@@ -39,8 +43,10 @@ def new_ekdilosi_dialog():
     st.divider()
     st.markdown("**Μαζική εισαγωγή συμμετεχόντων και ρεπερτορίου**")
 
-    df_atoma = fetch_atoma()
-    atomo_options = {_atomo_label(row): row["AtomoID"] for _, row in df_atoma.iterrows()}
+    df_atoma = fetch_atoma().sort_values(
+        by=["FoniSortOrder", "Eponymo"], kind="stable", na_position="last"
+    )
+    atomo_options = {_atomo_label_eponymo_prota(row): row["AtomoID"] for _, row in df_atoma.iterrows()}
     selected_atoma = st.multiselect("Άτομα που συμμετείχαν", options=list(atomo_options.keys()))
 
     df_kommatia = fetch_kommatia()
