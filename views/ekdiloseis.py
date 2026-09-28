@@ -30,6 +30,11 @@ def _atomo_label_eponymo_prota(row):
 @st.dialog("➕ Εισαγωγή Πρόβας / Συναυλίας", width="large")
 def new_ekdilosi_dialog():
     event_type = st.radio("Τύπος", ["Πρόβα", "Συναυλία"], horizontal=True)
+    typos_provas = (
+        st.radio("Τύπος Πρόβας", ["Κανονική", "Προγενική", "Γενική"], horizontal=True)
+        if event_type == "Πρόβα"
+        else None
+    )
 
     col1, col2 = st.columns(2)
     with col1:
@@ -59,7 +64,7 @@ def new_ekdilosi_dialog():
             st.stop()
 
         if event_type == "Πρόβα":
-            ekdilosi_id = add_prova(imerominia, extra_info or None)
+            ekdilosi_id = add_prova(imerominia, extra_info or None, typos_provas)
         else:
             ekdilosi_id = add_synavlia(imerominia, titlos, xoros or None, extra_info or None)
 
@@ -74,7 +79,7 @@ def new_ekdilosi_dialog():
 
 @st.dialog("🔎 Στοιχεία Εκδήλωσης", width="large")
 def view_ekdilosi_dialog(ekdilosi_id, row):
-    kind = "Πρόβα" if row["EventType"] == "P" else "Συναυλία"
+    kind = f"Πρόβα ({row['TyposProvas']})" if row["EventType"] == "P" else "Συναυλία"
     st.subheader(f"{kind} — {format_date(row['Imerominia'])}")
     if row["EventType"] == "S":
         st.write(f"**Τίτλος:** {row['Titlos']}")
@@ -187,9 +192,13 @@ else:
     else:
         df_shown = df_shown.sort_values("Imerominia", ascending=False).reset_index(drop=True)
 
+        typos_label = df_shown.apply(
+            lambda r: f"🎤 Πρόβα ({r['TyposProvas']})" if r["EventType"] == "P" else "🎭 Συναυλία",
+            axis=1,
+        )
         table_df = pd.DataFrame({
             "EkdilosiID": df_shown["EkdilosiID"],
-            "Τύπος": df_shown["EventType"].map({"P": "🎤 Πρόβα", "S": "🎭 Συναυλία"}),
+            "Τύπος": typos_label,
             "Ημερομηνία": df_shown["Imerominia"],
             "Τίτλος": df_shown["Titlos"],
             "Χώρος": df_shown["Xoros"],

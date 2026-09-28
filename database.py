@@ -249,19 +249,20 @@ def delete_kommati(kommati_id):
 def fetch_ekdiloseis():
     query = """
         SELECT e.EkdilosiID, e.EventType, e.Imerominia, e.ExtraInfo,
-               s.Titlos, s.Xoros,
+               s.Titlos, s.Xoros, p.TyposProvas,
                (SELECT COUNT(*) FROM SymmetoxesEkdilosis se
                 WHERE se.EkdilosiID = e.EkdilosiID AND se.Parousia = 1) AS ParousesCount,
                (SELECT COUNT(*) FROM KommatiaEkdilosis ke
                 WHERE ke.EkdilosiID = e.EkdilosiID) AS KommatiaCount
         FROM Ekdilosi e
         LEFT JOIN Synavlia s ON e.EkdilosiID = s.EkdilosiID
+        LEFT JOIN Prova p ON e.EkdilosiID = p.EkdilosiID
         ORDER BY e.Imerominia DESC
     """
     return read_df(query)
 
 
-def add_prova(imerominia, extra_info=None):
+def add_prova(imerominia, extra_info=None, typos_provas="Κανονική"):
     with get_engine().begin() as conn:
         result = conn.execute(
             text(
@@ -271,7 +272,10 @@ def add_prova(imerominia, extra_info=None):
             {"imerominia": imerominia, "extra": extra_info},
         )
         ekdilosi_id = result.scalar()
-        conn.execute(text("INSERT INTO Prova (EkdilosiID) VALUES (:id)"), {"id": ekdilosi_id})
+        conn.execute(
+            text("INSERT INTO Prova (EkdilosiID, TyposProvas) VALUES (:id, :typos)"),
+            {"id": ekdilosi_id, "typos": typos_provas},
+        )
     return ekdilosi_id
 
 

@@ -114,9 +114,11 @@ GO
 CREATE TABLE dbo.Prova (
     EkdilosiID  INT NOT NULL,
     EventType   AS (CAST('P' AS CHAR(1))) PERSISTED,
+    TyposProvas NVARCHAR(20) NOT NULL DEFAULT (N'Κανονική'),  -- Κανονική / Προγενική / Γενική
     CONSTRAINT PK_Prova PRIMARY KEY (EkdilosiID),
     CONSTRAINT FK_Prova_Ekdilosi FOREIGN KEY (EkdilosiID, EventType)
-        REFERENCES dbo.Ekdilosi (EkdilosiID, EventType)
+        REFERENCES dbo.Ekdilosi (EkdilosiID, EventType),
+    CONSTRAINT CK_Prova_TyposProvas CHECK (TyposProvas IN (N'Κανονική', N'Προγενική', N'Γενική'))
 );
 GO
 
