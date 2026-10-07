@@ -164,22 +164,18 @@ st.subheader("📋 Λίστα Προβών & Συναυλιών")
 
 df_ekd = fetch_ekdiloseis()
 
-if df_ekd.empty:
-    st.info("Δεν υπάρχουν ακόμα εκδηλώσεις.")
-else:
-    type_filter = st.segmented_control(
-        "Τύπος", ["Όλα", "Πρόβες", "Συναυλίες"], default="Όλα", key="ekd_type_filter"
-    )
 
-    periods = sorted({(d.year, d.month) for d in df_ekd["Imerominia"]}, reverse=True)
+def _ekdiloseis_table(df_type, key, columns, empty_msg):
+    """Πίνακας εκδηλώσεων ενός τύπου με φίλτρο μήνα και κουμπί προβολής."""
+    if df_type.empty:
+        st.info(empty_msg)
+        return
+
+    periods = sorted({(d.year, d.month) for d in df_type["Imerominia"]}, reverse=True)
     month_options = ["Όλοι"] + [f"{GREEK_MONTHS[m - 1]} {y}" for y, m in periods]
-    month_filter = st.selectbox("Μήνας", month_options, key="ekd_month_filter")
+    month_filter = st.selectbox("Μήνας", month_options, key=f"{key}_month_filter")
 
-    df_shown = df_ekd
-    if type_filter == "Πρόβες":
-        df_shown = df_shown[df_shown["EventType"] == "P"]
-    elif type_filter == "Συναυλίες":
-        df_shown = df_shown[df_shown["EventType"] == "S"]
+    df_shown = df_type
     if month_filter != "Όλοι":
         month_name, year_str = month_filter.rsplit(" ", 1)
         month_num = GREEK_MONTHS.index(month_name) + 1
@@ -189,43 +185,56 @@ else:
             & (df_shown["Imerominia"].apply(lambda d: d.month) == month_num)
         ]
 
-    if df_shown.empty:
-        st.info("Δεν υπάρχουν εκδηλώσεις για τα επιλεγμένα φίλτρα.")
-    else:
-        df_shown = df_shown.sort_values("Imerominia", ascending=False).reset_index(drop=True)
+    df_shown = df_shown.sort_values("Imerominia", ascending=False).reset_index(drop=True)
 
-        typos_label = df_shown.apply(
-            lambda r: f"🎤 Πρόβα ({r['TyposProvas']})" if r["EventType"] == "P" else "🎭 Συναυλία",
-            axis=1,
+    table_df = pd.DataFrame({"EkdilosiID": df_shown["EkdilosiID"], **columns(df_shown)})
+    table_df["Συμμετέχοντες"] = df_shown["ParousesCount"].astype(int)
+    table_df["Κομμάτια"] = df_shown["KommatiaCount"].astype(int)
+
+    event = st.dataframe(
+        table_df,
+        column_config={
+            "EkdilosiID": None,
+            "Ημερομηνία": st.column_config.DateColumn("Ημερομηνία", format="DD/MM/YYYY"),
+            "Συμμετέχοντες": st.column_config.NumberColumn("👥 Συμμετέχοντες"),
+            "Κομμάτια": st.column_config.NumberColumn("🎼 Κομμάτια"),
+        },
+        hide_index=True,
+        width="stretch",
+        height=480,
+        on_select="rerun",
+        selection_mode="single-row",
+        key=f"{key}_table",
+    )
+
+    selected_rows = event.selection["rows"]
+    if selected_rows:
+        sel_row = df_shown.iloc[selected_rows[0]]
+        if st.button("🔍 Εμφάνιση επιλεγμένης εγγραφής", width="stretch", key=f"{key}_view_btn"):
+            view_ekdilosi_dialog(int(sel_row["EkdilosiID"]), sel_row)
+
+
+if df_ekd.empty:
+    st.info("Δεν υπάρχουν ακόμα εκδηλώσεις.")
+else:
+    col_proves, col_synavlies = st.columns(2)
+    with col_proves:
+        st.markdown("#### 🎤 Πρόβες")
+        _ekdiloseis_table(
+            df_ekd[df_ekd["EventType"] == "P"],
+            "prova",
+            lambda d: {"Ημερομηνία": d["Imerominia"], "Τύπος": d["TyposProvas"]},
+            "Δεν υπάρχουν ακόμα πρόβες.",
         )
-        table_df = pd.DataFrame({
-            "EkdilosiID": df_shown["EkdilosiID"],
-            "Τύπος": typos_label,
-            "Ημερομηνία": df_shown["Imerominia"],
-            "Τίτλος": df_shown["Titlos"],
-            "Χώρος": df_shown["Xoros"],
-            "Συμμετέχοντες": df_shown["ParousesCount"].astype(int),
-            "Κομμάτια": df_shown["KommatiaCount"].astype(int),
-        })
-
-        event = st.dataframe(
-            table_df,
-            column_config={
-                "EkdilosiID": None,
-                "Ημερομηνία": st.column_config.DateColumn("Ημερομηνία", format="DD/MM/YYYY"),
-                "Συμμετέχοντες": st.column_config.NumberColumn("👥 Συμμετέχοντες"),
-                "Κομμάτια": st.column_config.NumberColumn("🎼 Κομμάτια"),
+    with col_synavlies:
+        st.markdown("#### 🎭 Συναυλίες")
+        _ekdiloseis_table(
+            df_ekd[df_ekd["EventType"] == "S"],
+            "synavlia",
+            lambda d: {
+                "Ημερομηνία": d["Imerominia"],
+                "Τίτλος": d["Titlos"],
+                "Χώρος": d["Xoros"],
             },
-            hide_index=True,
-            width="stretch",
-            height=480,
-            on_select="rerun",
-            selection_mode="single-row",
-            key="ekd_table",
+            "Δεν υπάρχουν ακόμα συναυλίες.",
         )
-
-        selected_rows = event.selection["rows"]
-        if selected_rows:
-            sel_row = df_shown.iloc[selected_rows[0]]
-            if st.button("🔍 Προβολή επιλεγμένης εγγραφής", width="stretch"):
-                view_ekdilosi_dialog(int(sel_row["EkdilosiID"]), sel_row)
