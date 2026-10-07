@@ -13,6 +13,7 @@ from database import (
     fetch_symmetoxes,
     remove_kommati_apo_ekdilosi,
     set_parousia,
+    update_ekdilosi,
 )
 from utils import GREEK_MONTHS, format_date, person_label
 
@@ -74,6 +75,39 @@ def new_ekdilosi_dialog():
             add_kommati_se_ekdilosi(ekdilosi_id, kommati_options[label])
 
         st.success("Η εγγραφή δημιουργήθηκε!")
+        st.rerun()
+
+
+def _edit_form(ekdilosi_id, row, is_prova):
+    k = f"edit_{ekdilosi_id}"
+    imerominia = st.date_input("Ημερομηνία", value=row["Imerominia"], format="DD/MM/YYYY", key=f"{k}_date")
+    typos_options = ["Κανονική", "Προγενική", "Γενική"]
+    if is_prova:
+        current = row["TyposProvas"]
+        typos = st.radio(
+            "Τύπος Πρόβας",
+            typos_options,
+            index=typos_options.index(current) if current in typos_options else 0,
+            horizontal=True,
+            key=f"{k}_typos",
+        )
+    else:
+        titlos = st.text_input("Τίτλος Συναυλίας", value=row["Titlos"] or "", key=f"{k}_titlos")
+        xoros = st.text_input(
+            "Χώρος Διεξαγωγής", value=row["Xoros"] if pd.notnull(row["Xoros"]) else "", key=f"{k}_xoros"
+        )
+    extra_info = st.text_area(
+        "Σχόλια", value=row["ExtraInfo"] if pd.notnull(row["ExtraInfo"]) else "", key=f"{k}_extra"
+    )
+
+    if st.button("💾 Αποθήκευση Αλλαγών", key=f"{k}_save", type="primary"):
+        if is_prova:
+            update_ekdilosi(ekdilosi_id, imerominia, extra_info or None, typos_provas=typos)
+        else:
+            if not titlos:
+                st.error("Ο τίτλος της συναυλίας είναι υποχρεωτικός.")
+                st.stop()
+            update_ekdilosi(ekdilosi_id, imerominia, extra_info or None, titlos=titlos, xoros=xoros or None)
         st.rerun()
 
 
@@ -166,7 +200,9 @@ def _view_ekdilosi_body(ekdilosi_id, row, is_prova):
 
     st.divider()
     label = "Πρόβας" if is_prova else "Συναυλίας"
-    _, col_del = st.columns([2, 1])
+    col_edit, col_del = st.columns([2, 1])
+    with col_edit.popover("✏️ Επεξεργασία"):
+        _edit_form(ekdilosi_id, row, is_prova)
     with col_del.popover(f"🗑️ Διαγραφή {label}", width="stretch"):
         st.warning("Η διαγραφή είναι μόνιμη. Να συνεχίσω;")
         if st.button("✔️ Ναι, διαγραφή", key=f"confirm_delete_ekdilosi_{ekdilosi_id}", type="primary"):

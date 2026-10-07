@@ -296,6 +296,25 @@ def add_synavlia(imerominia, titlos, xoros=None, extra_info=None):
     return ekdilosi_id
 
 
+def update_ekdilosi(ekdilosi_id, imerominia, extra_info=None, typos_provas=None, titlos=None, xoros=None):
+    """Ενημερώνει κοινά πεδία + πεδία υποτύπου (typos_provas για πρόβα, titlos/xoros για συναυλία)."""
+    with get_engine().begin() as conn:
+        conn.execute(
+            text("UPDATE Ekdilosi SET Imerominia = :imerominia, ExtraInfo = :extra WHERE EkdilosiID = :id"),
+            {"imerominia": imerominia, "extra": extra_info, "id": ekdilosi_id},
+        )
+        if typos_provas is not None:
+            conn.execute(
+                text("UPDATE Prova SET TyposProvas = :typos WHERE EkdilosiID = :id"),
+                {"typos": typos_provas, "id": ekdilosi_id},
+            )
+        if titlos is not None:
+            conn.execute(
+                text("UPDATE Synavlia SET Titlos = :titlos, Xoros = :xoros WHERE EkdilosiID = :id"),
+                {"titlos": titlos, "xoros": xoros, "id": ekdilosi_id},
+            )
+
+
 def delete_ekdilosi(ekdilosi_id):
     with get_engine().begin() as conn:
         conn.execute(text("DELETE FROM SymmetoxesEkdilosis WHERE EkdilosiID = :id"), {"id": ekdilosi_id})
