@@ -77,11 +77,18 @@ def new_ekdilosi_dialog():
         st.rerun()
 
 
-@st.dialog("🔎 Στοιχεία Εκδήλωσης", width="large")
 def view_ekdilosi_dialog(ekdilosi_id, row):
-    kind = f"Πρόβα ({row['TyposProvas']})" if row["EventType"] == "P" else "Συναυλία"
-    st.subheader(f"{kind} — {format_date(row['Imerominia'])}")
-    if row["EventType"] == "S":
+    # Ο τίτλος του dialog εξαρτάται από τον τύπο, άρα φτιάχνεται δυναμικά
+    is_prova = row["EventType"] == "P"
+    title = "🔎 Στοιχεία Πρόβας" if is_prova else "🔎 Στοιχεία Συναυλίας"
+    st.dialog(title, width="large")(_view_ekdilosi_body)(ekdilosi_id, row, is_prova)
+
+
+def _view_ekdilosi_body(ekdilosi_id, row, is_prova):
+    st.write(f"**Ημερομηνία:** {format_date(row['Imerominia'])}")
+    if is_prova:
+        st.write(f"**Τύπος:** {row['TyposProvas']}")
+    else:
         st.write(f"**Τίτλος:** {row['Titlos']}")
         if pd.notnull(row["Xoros"]):
             st.write(f"**Χώρος:** {row['Xoros']}")
@@ -116,7 +123,10 @@ def view_ekdilosi_dialog(ekdilosi_id, row):
                 key=f"view_parousies_{ekdilosi_id}",
             )
 
-            if st.button("💾 Αποθήκευση Συμμετεχόντων", key=f"save_parousies_{ekdilosi_id}"):
+            col_save, col_total = st.columns(2)
+            with col_total.container(horizontal_alignment="right"):
+                st.metric("Σύνολο Συμμετεχόντων", int(edited["Συμμετείχε"].sum()), width="content")
+            if col_save.button("💾 Αποθήκευση Συμμετεχόντων", key=f"save_parousies_{ekdilosi_id}"):
                 for _, r in edited.iterrows():
                     set_parousia(ekdilosi_id, int(r["AtomoID"]), bool(r["Συμμετείχε"]))
                 st.success("Αποθηκεύτηκε!")
@@ -125,6 +135,8 @@ def view_ekdilosi_dialog(ekdilosi_id, row):
     with tab_repertorio:
         df_kommatia = fetch_kommatia()
         df_linked = fetch_kommatia_ekdilosis(ekdilosi_id)
+        linked_ids = set(df_linked["KommatiID"]) if not df_linked.empty else set()
+        available = df_kommatia[~df_kommatia["KommatiID"].isin(linked_ids)]
 
         if df_linked.empty:
             st.caption("Δεν έχουν προστεθεί κομμάτια ακόμα.")
@@ -136,24 +148,30 @@ def view_ekdilosi_dialog(ekdilosi_id, row):
                     remove_kommati_apo_ekdilosi(ekdilosi_id, int(r["KommatiID"]))
                     st.rerun()
 
-        linked_ids = set(df_linked["KommatiID"]) if not df_linked.empty else set()
-        available = df_kommatia[~df_kommatia["KommatiID"].isin(linked_ids)]
-        if available.empty:
-            st.caption("Όλα τα διαθέσιμα κομμάτια έχουν ήδη προστεθεί (ή δεν υπάρχουν κομμάτια ακόμα).")
-        else:
-            to_add = st.selectbox(
-                "Προσθήκη κομματιού:", available["Titlos"].tolist(), key=f"add_kommati_sb_{ekdilosi_id}"
-            )
-            if st.button("➕ Προσθήκη", key=f"add_kommati_btn_{ekdilosi_id}"):
-                kommati_id = int(available[available["Titlos"] == to_add]["KommatiID"].iloc[0])
-                add_kommati_se_ekdilosi(ekdilosi_id, kommati_id)
-                st.rerun()
+        col_add, col_total = st.columns([3, 1])
+        # Nested st.dialog δεν επιτρέπεται, γι' αυτό popover. Το body ακολουθεί το πλάτος του κουμπιού.
+        with col_add.popover("➕ Προσθήκη Κομματιού", width="stretch"):
+            if available.empty:
+                st.caption("Όλα τα διαθέσιμα κομμάτια έχουν ήδη προστεθεί (ή δεν υπάρχουν κομμάτια ακόμα).")
+            else:
+                to_add = st.selectbox(
+                    "Κομμάτι:", available["Titlos"].tolist(), key=f"add_kommati_sb_{ekdilosi_id}"
+                )
+                if st.button("➕ Προσθήκη", key=f"add_kommati_btn_{ekdilosi_id}"):
+                    kommati_id = int(available[available["Titlos"] == to_add]["KommatiID"].iloc[0])
+                    add_kommati_se_ekdilosi(ekdilosi_id, kommati_id)
+                    st.rerun()
+        with col_total.container(horizontal_alignment="right"):
+            st.metric("Σύνολο Κομματιών", len(df_linked), width="content")
 
     st.divider()
-    if st.button("🗑️ Διαγραφή Εκδήλωσης", key=f"delete_ekdilosi_{ekdilosi_id}"):
-        delete_ekdilosi(ekdilosi_id)
-        st.success("Η εκδήλωση διαγράφηκε!")
-        st.rerun()
+    label = "Πρόβας" if is_prova else "Συναυλίας"
+    _, col_del = st.columns([2, 1])
+    with col_del.popover(f"🗑️ Διαγραφή {label}", width="stretch"):
+        st.warning("Η διαγραφή είναι μόνιμη. Να συνεχίσω;")
+        if st.button("✔️ Ναι, διαγραφή", key=f"confirm_delete_ekdilosi_{ekdilosi_id}", type="primary"):
+            delete_ekdilosi(ekdilosi_id)
+            st.rerun()
 
 
 if st.button("➕ Εισαγωγή Πρόβας / Συναυλίας"):
@@ -165,7 +183,7 @@ st.subheader("📋 Λίστα Προβών & Συναυλιών")
 df_ekd = fetch_ekdiloseis()
 
 
-def _ekdiloseis_table(df_type, key, columns, empty_msg):
+def _ekdiloseis_table(df_type, key, columns, empty_msg, noun):
     """Πίνακας εκδηλώσεων ενός τύπου με φίλτρο μήνα και κουμπί προβολής."""
     if df_type.empty:
         st.info(empty_msg)
@@ -210,7 +228,7 @@ def _ekdiloseis_table(df_type, key, columns, empty_msg):
     selected_rows = event.selection["rows"]
     if selected_rows:
         sel_row = df_shown.iloc[selected_rows[0]]
-        if st.button("🔍 Εμφάνιση επιλεγμένης εγγραφής", width="stretch", key=f"{key}_view_btn"):
+        if st.button(f"🔍 Εμφάνιση επιλεγμένης {noun}", width="stretch", key=f"{key}_view_btn"):
             view_ekdilosi_dialog(int(sel_row["EkdilosiID"]), sel_row)
 
 
@@ -225,6 +243,7 @@ else:
             "prova",
             lambda d: {"Ημερομηνία": d["Imerominia"], "Τύπος": d["TyposProvas"]},
             "Δεν υπάρχουν ακόμα πρόβες.",
+            "πρόβας",
         )
     with col_synavlies:
         st.markdown("#### 🎭 Συναυλίες")
@@ -237,4 +256,5 @@ else:
                 "Χώρος": d["Xoros"],
             },
             "Δεν υπάρχουν ακόμα συναυλίες.",
+            "συναυλίας",
         )
