@@ -53,14 +53,14 @@ st.divider()
 df_atoma = fetch_atoma()
 df_atoma["Φωνή"] = df_atoma["FoniID"].map(foni_id_to_label)
 df_atoma = df_atoma.sort_values(
-    by="FoniSortOrder", kind="stable", na_position="last"
+    by=["FoniSortOrder", "Eponymo"], kind="stable", na_position="last"
 ).reset_index(drop=True)
 
 foni_filter = st.selectbox("Φίλτρο φωνής", ["Όλες"] + list(foni_options.keys()))
 df_shown = df_atoma if foni_filter == "Όλες" else df_atoma[df_atoma["Φωνή"] == foni_filter]
 df_shown = df_shown.reset_index(drop=True)
 
-display_cols = ["AtomoID", "Onoma", "Eponymo", "Φωνή", "KinitoTilefono", "StatheroTilefono", "Email"]
+display_cols = ["AtomoID", "Eponymo", "Onoma", "Φωνή", "KinitoTilefono", "StatheroTilefono", "Email"]
 
 edited = st.data_editor(
     df_shown[display_cols],

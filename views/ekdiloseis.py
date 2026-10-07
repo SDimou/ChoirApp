@@ -91,14 +91,16 @@ def view_ekdilosi_dialog(ekdilosi_id, row):
     tab_parousies, tab_repertorio = st.tabs(["✅ Συμμετέχοντες", "🎼 Κομμάτια"])
 
     with tab_parousies:
-        df_atoma = fetch_atoma()
+        df_atoma = fetch_atoma().sort_values(
+            by=["FoniSortOrder", "Eponymo"], kind="stable", na_position="last"
+        )
         if df_atoma.empty:
             st.info("Δεν υπάρχουν καταχωρημένοι χορωδοί ακόμα.")
         else:
             df_symmetoxes = fetch_symmetoxes(ekdilosi_id)
             parousia_map = dict(zip(df_symmetoxes["AtomoID"], df_symmetoxes["Parousia"]))
 
-            df_view = df_atoma[["AtomoID", "Onoma", "Eponymo"]].copy()
+            df_view = df_atoma[["AtomoID", "Eponymo", "Onoma"]].copy()
             df_view["Συμμετείχε"] = df_view["AtomoID"].map(lambda x: bool(parousia_map.get(x, False)))
 
             edited = st.data_editor(
