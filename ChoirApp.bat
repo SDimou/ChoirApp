@@ -1,4 +1,4 @@
 @echo off
-cd /d "C:\Σκάντζα\ChoirApp"
+cd /d "%~dp0"
 streamlit run ChoirApp.py
 pause
