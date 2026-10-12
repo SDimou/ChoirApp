@@ -160,46 +160,67 @@ def _view_ekdilosi_body(ekdilosi_id, row, is_prova):
 
     with tab_parousies:
         df_symmetoxes = fetch_symmetoxes(ekdilosi_id)
-        parousia_map = dict(zip(df_symmetoxes["AtomoID"], df_symmetoxes["Parousia"]))
-        # Ενεργοί + όσοι έχουν ήδη καταχώρηση στην εκδήλωση (ώστε να μη χάνονται όσοι αποχώρησαν αργότερα)
-        df_atoma = fetch_atoma()
-        df_atoma = df_atoma[
-            df_atoma["ImerominiaApoxorisis"].isnull() | df_atoma["AtomoID"].isin(parousia_map)
-        ].sort_values(by=["FoniSortOrder", "Eponymo"], kind="stable", na_position="last")
-        if df_atoma.empty:
-            st.info("Δεν υπάρχουν ενεργοί χορωδοί.")
+        participant_ids = set(df_symmetoxes.loc[df_symmetoxes["Parousia"] == True, "AtomoID"])  # noqa: E712
+        df_atoma = fetch_atoma().sort_values(
+            by=["FoniSortOrder", "Eponymo"], kind="stable", na_position="last"
+        )
+
+        # Προσθήκη: μόνο ενεργοί χορωδοί που δεν συμμετέχουν ήδη
+        df_available = df_atoma[
+            df_atoma["ImerominiaApoxorisis"].isnull() & ~df_atoma["AtomoID"].isin(participant_ids)
+        ]
+        atomo_options = {_atomo_label_eponymo_prota(r): int(r["AtomoID"]) for _, r in df_available.iterrows()}
+        selected_atoma = st.multiselect(
+            "Άτομα που συμμετείχαν", options=list(atomo_options.keys()), key=f"add_atoma_ms_{ekdilosi_id}"
+        )
+        if st.button("➕ Προσθήκη Συμμετεχόντων", key=f"add_atoma_btn_{ekdilosi_id}", disabled=not selected_atoma):
+            for label in selected_atoma:
+                set_parousia(ekdilosi_id, atomo_options[label], True)
+            st.rerun()
+
+        # Πίνακας: μόνο οι συμμετέχοντες
+        df_part = df_atoma[df_atoma["AtomoID"].isin(participant_ids)].reset_index(drop=True)
+        if df_part.empty:
+            st.caption("Δεν έχουν προστεθεί συμμετέχοντες ακόμα.")
         else:
-
-            df_view = df_atoma[["AtomoID", "Eponymo", "Onoma"]].copy()
-            df_view["Συμμετείχε"] = df_view["AtomoID"].map(lambda x: bool(parousia_map.get(x, False)))
-
-            edited = st.data_editor(
-                df_view,
+            event = st.dataframe(
+                df_part[["Eponymo", "Onoma", "FoniDescr"]],
                 column_config={
-                    "AtomoID": None,
-                    "Onoma": st.column_config.TextColumn("Όνομα", disabled=True),
-                    "Eponymo": st.column_config.TextColumn("Επώνυμο", disabled=True),
-                    "Συμμετείχε": st.column_config.CheckboxColumn("Συμμετείχε"),
+                    "Eponymo": "Επώνυμο",
+                    "Onoma": "Όνομα",
+                    "FoniDescr": "Φωνή",
                 },
                 hide_index=True,
                 width="stretch",
+                on_select="rerun",
+                selection_mode="multi-row",
                 key=f"view_parousies_{ekdilosi_id}",
             )
-
-            col_save, col_total = st.columns(2)
-            with col_total.container(horizontal_alignment="right"):
-                st.metric("Σύνολο Συμμετεχόντων", int(edited["Συμμετείχε"].sum()), width="content")
-            if col_save.button("💾 Αποθήκευση Συμμετεχόντων", key=f"save_parousies_{ekdilosi_id}"):
-                for _, r in edited.iterrows():
-                    set_parousia(ekdilosi_id, int(r["AtomoID"]), bool(r["Συμμετείχε"]))
-                st.success("Αποθηκεύτηκε!")
+            selected_rows = event.selection["rows"]
+            if st.button(
+                "🗑️ Αφαίρεση επιλεγμένων", key=f"rm_parousies_{ekdilosi_id}", disabled=not selected_rows
+            ):
+                for i in selected_rows:
+                    set_parousia(ekdilosi_id, int(df_part.loc[i, "AtomoID"]), False)
                 st.rerun()
+
+        with st.container(horizontal_alignment="right"):
+            st.metric("Σύνολο Συμμετεχόντων", len(df_part), width="content")
 
     with tab_repertorio:
         df_kommatia = fetch_kommatia()
         df_linked = fetch_kommatia_ekdilosis(ekdilosi_id)
         linked_ids = set(df_linked["KommatiID"]) if not df_linked.empty else set()
         available = df_kommatia[~df_kommatia["KommatiID"].isin(linked_ids)]
+
+        kommati_options = {r["Titlos"]: int(r["KommatiID"]) for _, r in available.iterrows()}
+        selected_kommatia = st.multiselect(
+            "Κομμάτια", options=list(kommati_options.keys()), key=f"add_kommatia_ms_{ekdilosi_id}"
+        )
+        if st.button("➕ Προσθήκη Κομματιών", key=f"add_kommatia_btn_{ekdilosi_id}", disabled=not selected_kommatia):
+            for label in selected_kommatia:
+                add_kommati_se_ekdilosi(ekdilosi_id, kommati_options[label])
+            st.rerun()
 
         if df_linked.empty:
             st.caption("Δεν έχουν προστεθεί κομμάτια ακόμα.")
@@ -211,20 +232,7 @@ def _view_ekdilosi_body(ekdilosi_id, row, is_prova):
                     remove_kommati_apo_ekdilosi(ekdilosi_id, int(r["KommatiID"]))
                     st.rerun()
 
-        col_add, col_total = st.columns([3, 1])
-        # Nested st.dialog δεν επιτρέπεται, γι' αυτό popover. Το body ακολουθεί το πλάτος του κουμπιού.
-        with col_add.popover("➕ Προσθήκη Κομματιού", width="stretch"):
-            if available.empty:
-                st.caption("Όλα τα διαθέσιμα κομμάτια έχουν ήδη προστεθεί (ή δεν υπάρχουν κομμάτια ακόμα).")
-            else:
-                to_add = st.selectbox(
-                    "Κομμάτι:", available["Titlos"].tolist(), key=f"add_kommati_sb_{ekdilosi_id}"
-                )
-                if st.button("➕ Προσθήκη", key=f"add_kommati_btn_{ekdilosi_id}"):
-                    kommati_id = int(available[available["Titlos"] == to_add]["KommatiID"].iloc[0])
-                    add_kommati_se_ekdilosi(ekdilosi_id, kommati_id)
-                    st.rerun()
-        with col_total.container(horizontal_alignment="right"):
+        with st.container(horizontal_alignment="right"):
             st.metric("Σύνολο Κομματιών", len(df_linked), width="content")
 
     st.divider()
