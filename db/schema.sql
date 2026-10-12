@@ -132,6 +132,7 @@ CREATE TABLE dbo.Synavlia (
     EventType   AS (CAST('S' AS CHAR(1))) PERSISTED,
     Titlos      NVARCHAR(200) NOT NULL,        -- τίτλος/ονομασία συναυλίας
     Xoros       NVARCHAR(200) NULL,             -- χώρος διεξαγωγής
+    FolderSynavlias NVARCHAR(500) NULL,         -- διαδρομή φακέλου συναυλίας
     CONSTRAINT PK_Synavlia PRIMARY KEY (EkdilosiID),
     CONSTRAINT FK_Synavlia_Ekdilosi FOREIGN KEY (EkdilosiID, EventType)
         REFERENCES dbo.Ekdilosi (EkdilosiID, EventType)

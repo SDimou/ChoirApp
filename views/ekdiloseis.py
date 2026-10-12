@@ -1,3 +1,5 @@
+import zlib
+
 import pandas as pd
 import streamlit as st
 
@@ -16,7 +18,7 @@ from database import (
     set_parousia,
     update_ekdilosi,
 )
-from utils import GREEK_MONTHS, format_date, person_label
+from utils import GREEK_MONTHS, format_date, open_folder, person_label, select_folder
 
 st.title("📅 Πρόβες & Συναυλίες")
 
@@ -97,6 +99,22 @@ def _edit_form(ekdilosi_id, row, is_prova):
         xoros = st.text_input(
             "Χώρος Διεξαγωγής", value=row["Xoros"] if pd.notnull(row["Xoros"]) else "", key=f"{k}_xoros"
         )
+        db_folder = row["FolderSynavlias"] if pd.notnull(row["FolderSynavlias"]) else ""
+        # Η τιμή της βάσης μπαίνει στο key, ώστε το πεδίο να ξαναρχικοποιείται όποτε αλλάζει (όχι μπαγιάτικη τιμή).
+        folder_key = f"{k}_folder_{zlib.crc32(db_folder.encode())}"
+        if folder_key not in st.session_state:
+            st.session_state[folder_key] = db_folder
+
+        def _pick_folder():
+            # Callback: τρέχει πριν το text_input ξαναδημιουργηθεί, άρα επιτρέπεται η εγγραφή στο key του.
+            path, err = select_folder(initialdir=st.session_state[folder_key] or None)
+            if path:
+                st.session_state[folder_key] = path
+            elif err:
+                st.toast(f"Δεν ήταν δυνατή η επιλογή φακέλου: {err}")
+
+        folder = st.text_input("Φάκελος Συναυλίας", key=folder_key)
+        st.button("📁 Επιλογή Φακέλου", key=f"{k}_pick_folder", on_click=_pick_folder)
     extra_info = st.text_area(
         "Σχόλια", value=row["ExtraInfo"] if pd.notnull(row["ExtraInfo"]) else "", key=f"{k}_extra"
     )
@@ -108,7 +126,8 @@ def _edit_form(ekdilosi_id, row, is_prova):
             if not titlos:
                 st.error("Ο τίτλος της συναυλίας είναι υποχρεωτικός.")
                 st.stop()
-            update_ekdilosi(ekdilosi_id, imerominia, extra_info or None, titlos=titlos, xoros=xoros or None)
+            update_ekdilosi(ekdilosi_id, imerominia, extra_info or None, titlos=titlos, xoros=xoros or None,
+                            folder=folder.strip() or None)
         st.rerun()
 
 
@@ -127,6 +146,13 @@ def _view_ekdilosi_body(ekdilosi_id, row, is_prova):
         st.write(f"**Τίτλος:** {row['Titlos']}")
         if pd.notnull(row["Xoros"]):
             st.write(f"**Χώρος:** {row['Xoros']}")
+        if pd.notnull(row["FolderSynavlias"]):
+            col_folder, col_open = st.columns([4, 1])
+            col_folder.write(f"**Φάκελος Συναυλίας:** {row['FolderSynavlias']}")
+            if col_open.button("📂 Άνοιγμα", key=f"open_folder_{ekdilosi_id}"):
+                ok, err = open_folder(row["FolderSynavlias"])
+                if not ok:
+                    st.error(err)
     if pd.notnull(row["ExtraInfo"]):
         st.write(f"**Σχόλια:** {row['ExtraInfo']}")
 
@@ -203,10 +229,10 @@ def _view_ekdilosi_body(ekdilosi_id, row, is_prova):
 
     st.divider()
     label = "Πρόβας" if is_prova else "Συναυλίας"
-    col_edit, col_del = st.columns([2, 1])
-    with col_edit.popover("✏️ Επεξεργασία"):
+    # Το body του popover ακολουθεί το πλάτος του κουμπιού, γι' αυτό πλήρες πλάτος σε δική τους γραμμή.
+    with st.popover("✏️ Επεξεργασία", width="stretch"):
         _edit_form(ekdilosi_id, row, is_prova)
-    with col_del.popover(f"🗑️ Διαγραφή {label}", width="stretch"):
+    with st.popover(f"🗑️ Διαγραφή {label}", width="stretch"):
         st.warning("Η διαγραφή είναι μόνιμη. Να συνεχίσω;")
         if st.button("✔️ Ναι, διαγραφή", key=f"confirm_delete_ekdilosi_{ekdilosi_id}", type="primary"):
             delete_ekdilosi(ekdilosi_id)
@@ -293,6 +319,7 @@ else:
                 "Ημερομηνία": d["Imerominia"],
                 "Τίτλος": d["Titlos"],
                 "Χώρος": d["Xoros"],
+                "Φάκελος": d["FolderSynavlias"],
             },
             "Δεν υπάρχουν ακόμα συναυλίες.",
             "συναυλίας",

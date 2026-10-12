@@ -261,7 +261,7 @@ def delete_kommati(kommati_id):
 def fetch_ekdiloseis():
     query = """
         SELECT e.EkdilosiID, e.EventType, e.Imerominia, e.ExtraInfo,
-               s.Titlos, s.Xoros, p.TyposProvas,
+               s.Titlos, s.Xoros, s.FolderSynavlias, p.TyposProvas,
                (SELECT COUNT(*) FROM SymmetoxesEkdilosis se
                 WHERE se.EkdilosiID = e.EkdilosiID AND se.Parousia = 1) AS ParousesCount,
                (SELECT COUNT(*) FROM KommatiaEkdilosis ke
@@ -308,7 +308,8 @@ def add_synavlia(imerominia, titlos, xoros=None, extra_info=None):
     return ekdilosi_id
 
 
-def update_ekdilosi(ekdilosi_id, imerominia, extra_info=None, typos_provas=None, titlos=None, xoros=None):
+def update_ekdilosi(ekdilosi_id, imerominia, extra_info=None, typos_provas=None, titlos=None, xoros=None,
+                    folder=None):
     """Ενημερώνει κοινά πεδία + πεδία υποτύπου (typos_provas για πρόβα, titlos/xoros για συναυλία)."""
     with get_engine().begin() as conn:
         conn.execute(
@@ -322,8 +323,8 @@ def update_ekdilosi(ekdilosi_id, imerominia, extra_info=None, typos_provas=None,
             )
         if titlos is not None:
             conn.execute(
-                text("UPDATE Synavlia SET Titlos = :titlos, Xoros = :xoros WHERE EkdilosiID = :id"),
-                {"titlos": titlos, "xoros": xoros, "id": ekdilosi_id},
+                text("UPDATE Synavlia SET Titlos = :titlos, Xoros = :xoros, FolderSynavlias = :folder WHERE EkdilosiID = :id"),
+                {"titlos": titlos, "xoros": xoros, "folder": folder, "id": ekdilosi_id},
             )
 
 
