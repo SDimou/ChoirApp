@@ -82,7 +82,8 @@ def delete_foni(foni_id):
 def fetch_atoma():
     query = """
         SELECT a.AtomoID, a.Eponymo, a.Onoma, a.KinitoTilefono,
-               a.StatheroTilefono, a.Email, a.FoniID, f.FoniDescr, f.SortOrder AS FoniSortOrder
+               a.StatheroTilefono, a.Email, a.FoniID, f.FoniDescr, f.SortOrder AS FoniSortOrder,
+               a.ImerominiaEggrafis, a.ImerominiaApoxorisis
         FROM Atomo a
         LEFT JOIN Foni f ON a.FoniID = f.FoniID
         ORDER BY a.Eponymo, a.Onoma
@@ -90,27 +91,38 @@ def fetch_atoma():
     return read_df(query)
 
 
-def add_atomo(eponymo, onoma, kinito=None, statero=None, email=None, foni_id=None):
+def fetch_atoma_energa():
+    """Μόνο ενεργοί χορωδοί (χωρίς ημερομηνία αποχώρησης) — για τα μενού εισαγωγής."""
+    df = fetch_atoma()
+    return df[df["ImerominiaApoxorisis"].isnull()]
+
+
+def add_atomo(eponymo, onoma, kinito=None, statero=None, email=None, foni_id=None,
+              eggrafi=None, apoxorisi=None):
     execute(
         """
-        INSERT INTO Atomo (Eponymo, Onoma, KinitoTilefono, StatheroTilefono, Email, FoniID)
-        VALUES (:eponymo, :onoma, :kinito, :statero, :email, :foni_id)
+        INSERT INTO Atomo (Eponymo, Onoma, KinitoTilefono, StatheroTilefono, Email, FoniID,
+                           ImerominiaEggrafis, ImerominiaApoxorisis)
+        VALUES (:eponymo, :onoma, :kinito, :statero, :email, :foni_id, :eggrafi, :apoxorisi)
         """,
-        {"eponymo": eponymo, "onoma": onoma, "kinito": kinito,
-         "statero": statero, "email": email, "foni_id": foni_id},
+        {"eponymo": eponymo, "onoma": onoma, "kinito": kinito, "statero": statero,
+         "email": email, "foni_id": foni_id, "eggrafi": eggrafi, "apoxorisi": apoxorisi},
     )
 
 
-def update_atomo(atomo_id, eponymo, onoma, kinito=None, statero=None, email=None, foni_id=None):
+def update_atomo(atomo_id, eponymo, onoma, kinito=None, statero=None, email=None, foni_id=None,
+                 eggrafi=None, apoxorisi=None):
     execute(
         """
         UPDATE Atomo
         SET Eponymo = :eponymo, Onoma = :onoma, KinitoTilefono = :kinito,
-            StatheroTilefono = :statero, Email = :email, FoniID = :foni_id
+            StatheroTilefono = :statero, Email = :email, FoniID = :foni_id,
+            ImerominiaEggrafis = :eggrafi, ImerominiaApoxorisis = :apoxorisi
         WHERE AtomoID = :id
         """,
         {"eponymo": eponymo, "onoma": onoma, "kinito": kinito, "statero": statero,
-         "email": email, "foni_id": foni_id, "id": atomo_id},
+         "email": email, "foni_id": foni_id, "eggrafi": eggrafi, "apoxorisi": apoxorisi,
+         "id": atomo_id},
     )
 
 

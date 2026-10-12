@@ -35,12 +35,19 @@ def new_atomo_dialog():
 
     email = st.text_input("Email")
 
+    col5, col6 = st.columns(2)
+    with col5:
+        eggrafi = st.date_input("Ημερομηνία Εγγραφής Χορωδού", value=None, format="DD/MM/YYYY")
+    with col6:
+        apoxorisi = st.date_input("Ημερομηνία Αποχώρησης Χορωδού", value=None, format="DD/MM/YYYY")
+
     if st.button("💾 Δημιουργία", width="stretch"):
         if not onoma or not eponymo:
             st.error("Το όνομα και το επώνυμο είναι υποχρεωτικά.")
             st.stop()
         foni_id = foni_options.get(foni_label)
-        add_atomo(eponymo, onoma, kinito or None, statero or None, email or None, foni_id)
+        add_atomo(eponymo, onoma, kinito or None, statero or None, email or None, foni_id,
+                  eggrafi, apoxorisi)
         st.success("Ο χορωδός προστέθηκε!")
         st.rerun()
 
@@ -60,7 +67,8 @@ foni_filter = st.selectbox("Φίλτρο φωνής", ["Όλες"] + list(foni_o
 df_shown = df_atoma if foni_filter == "Όλες" else df_atoma[df_atoma["Φωνή"] == foni_filter]
 df_shown = df_shown.reset_index(drop=True)
 
-display_cols = ["AtomoID", "Eponymo", "Onoma", "Φωνή", "KinitoTilefono", "StatheroTilefono", "Email"]
+display_cols = ["AtomoID", "Eponymo", "Onoma", "Φωνή", "KinitoTilefono", "StatheroTilefono", "Email",
+                "ImerominiaEggrafis", "ImerominiaApoxorisis"]
 
 edited = st.data_editor(
     df_shown[display_cols],
@@ -72,6 +80,8 @@ edited = st.data_editor(
         "KinitoTilefono": st.column_config.TextColumn("Κινητό"),
         "StatheroTilefono": st.column_config.TextColumn("Σταθερό"),
         "Email": st.column_config.TextColumn("Email"),
+        "ImerominiaEggrafis": st.column_config.DateColumn("Εγγραφή", format="DD/MM/YYYY"),
+        "ImerominiaApoxorisis": st.column_config.DateColumn("Αποχώρηση", format="DD/MM/YYYY"),
     },
     num_rows="dynamic",
     width="stretch",
@@ -90,7 +100,8 @@ if st.button("💾 Αποθήκευση Αλλαγών"):
             continue
         foni_id = foni_options.get(row["Φωνή"])
         args = (row["Eponymo"], row["Onoma"], _clean(row["KinitoTilefono"]),
-                 _clean(row["StatheroTilefono"]), _clean(row["Email"]), foni_id)
+                 _clean(row["StatheroTilefono"]), _clean(row["Email"]), foni_id,
+                 _clean(row["ImerominiaEggrafis"]), _clean(row["ImerominiaApoxorisis"]))
         if pd.isnull(row["AtomoID"]):
             add_atomo(*args)
         else:

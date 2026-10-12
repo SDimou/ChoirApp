@@ -81,6 +81,8 @@ CREATE TABLE dbo.Atomo (
     StatheroTilefono    NVARCHAR(20)      NULL,
     FoniID              INT               NULL,
     Email               NVARCHAR(200)     NULL,
+    ImerominiaEggrafis  DATE              NULL,   -- ημερομηνία εγγραφής χορωδού
+    ImerominiaApoxorisis DATE             NULL,   -- ημερομηνία αποχώρησης (NULL = ενεργός)
     CONSTRAINT PK_Atomo PRIMARY KEY (AtomoID),
     CONSTRAINT FK_Atomo_Foni FOREIGN KEY (FoniID)
         REFERENCES dbo.Foni (FoniID)

@@ -7,6 +7,7 @@ from database import (
     add_synavlia,
     delete_ekdilosi,
     fetch_atoma,
+    fetch_atoma_energa,
     fetch_ekdiloseis,
     fetch_kommatia,
     fetch_kommatia_ekdilosis,
@@ -49,7 +50,7 @@ def new_ekdilosi_dialog():
     st.divider()
     st.markdown("**Μαζική εισαγωγή συμμετεχόντων και ρεπερτορίου**")
 
-    df_atoma = fetch_atoma().sort_values(
+    df_atoma = fetch_atoma_energa().sort_values(
         by=["FoniSortOrder", "Eponymo"], kind="stable", na_position="last"
     )
     atomo_options = {_atomo_label_eponymo_prota(row): row["AtomoID"] for _, row in df_atoma.iterrows()}
@@ -132,14 +133,16 @@ def _view_ekdilosi_body(ekdilosi_id, row, is_prova):
     tab_parousies, tab_repertorio = st.tabs(["✅ Συμμετέχοντες", "🎼 Κομμάτια"])
 
     with tab_parousies:
-        df_atoma = fetch_atoma().sort_values(
-            by=["FoniSortOrder", "Eponymo"], kind="stable", na_position="last"
-        )
+        df_symmetoxes = fetch_symmetoxes(ekdilosi_id)
+        parousia_map = dict(zip(df_symmetoxes["AtomoID"], df_symmetoxes["Parousia"]))
+        # Ενεργοί + όσοι έχουν ήδη καταχώρηση στην εκδήλωση (ώστε να μη χάνονται όσοι αποχώρησαν αργότερα)
+        df_atoma = fetch_atoma()
+        df_atoma = df_atoma[
+            df_atoma["ImerominiaApoxorisis"].isnull() | df_atoma["AtomoID"].isin(parousia_map)
+        ].sort_values(by=["FoniSortOrder", "Eponymo"], kind="stable", na_position="last")
         if df_atoma.empty:
-            st.info("Δεν υπάρχουν καταχωρημένοι χορωδοί ακόμα.")
+            st.info("Δεν υπάρχουν ενεργοί χορωδοί.")
         else:
-            df_symmetoxes = fetch_symmetoxes(ekdilosi_id)
-            parousia_map = dict(zip(df_symmetoxes["AtomoID"], df_symmetoxes["Parousia"]))
 
             df_view = df_atoma[["AtomoID", "Eponymo", "Onoma"]].copy()
             df_view["Συμμετείχε"] = df_view["AtomoID"].map(lambda x: bool(parousia_map.get(x, False)))
