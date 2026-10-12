@@ -231,7 +231,9 @@ GO
    ===================================================================== */
 
 INSERT INTO dbo.Foni (FoniSynt, FoniDescr, SortOrder) VALUES
-    (N'S',   N'Soprano',  1),
-    (N'BAL', N'Baladeur', 2),
-    (N'A',   N'Alto',     3);
+    (N'S1',  N'Soprano 1', 1),
+    (N'S2',  N'Soprano 2', 2),
+    (N'BAL', N'Baladeur',  3),
+    (N'A1',  N'Alto 1',    4),
+    (N'A2',  N'Alto 2',    5);
 GO
