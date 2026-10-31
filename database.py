@@ -79,16 +79,17 @@ def delete_foni(foni_id):
 # Atomo
 # =========================================================================
 
-def fetch_atoma():
+def fetch_atoma(deleted=False):
     query = """
         SELECT a.AtomoID, a.Eponymo, a.Onoma, a.KinitoTilefono,
                a.StatheroTilefono, a.Email, a.FoniID, f.FoniDescr, f.SortOrder AS FoniSortOrder,
                a.ImerominiaEggrafis, a.ImerominiaApoxorisis
         FROM Atomo a
         LEFT JOIN Foni f ON a.FoniID = f.FoniID
+        WHERE a.IsDeleted = :deleted
         ORDER BY a.Eponymo, a.Onoma
     """
-    return read_df(query)
+    return read_df(query, {"deleted": int(deleted)})
 
 
 def fetch_atoma_energa():
@@ -127,9 +128,11 @@ def update_atomo(atomo_id, eponymo, onoma, kinito=None, statero=None, email=None
 
 
 def delete_atomo(atomo_id):
-    with get_engine().begin() as conn:
-        conn.execute(text("DELETE FROM SymmetoxesEkdilosis WHERE AtomoID = :id"), {"id": atomo_id})
-        conn.execute(text("DELETE FROM Atomo WHERE AtomoID = :id"), {"id": atomo_id})
+    execute("UPDATE Atomo SET IsDeleted = 1 WHERE AtomoID = :id", {"id": atomo_id})
+
+
+def restore_atomo(atomo_id):
+    execute("UPDATE Atomo SET IsDeleted = 0 WHERE AtomoID = :id", {"id": atomo_id})
 
 
 # =========================================================================
@@ -174,7 +177,7 @@ def delete_stixourgos(stixourgos_id):
 # Kommati (+ σύνθετες/στιχουργοί, πολλά-προς-πολλά)
 # =========================================================================
 
-def fetch_kommatia():
+def fetch_kommatia(deleted=False):
     query = """
         SELECT k.KommatiID, k.Titlos, k.Xronia, k.ExtraInfo,
                syn.Synthetes, sti.Stixourgoi
@@ -193,9 +196,10 @@ def fetch_kommatia():
             JOIN Stixourgos st ON kst.StixourgosID = st.StixourgosID
             GROUP BY kst.KommatiID
         ) sti ON sti.KommatiID = k.KommatiID
+        WHERE k.IsDeleted = :deleted
         ORDER BY k.Titlos
     """
-    return read_df(query)
+    return read_df(query, {"deleted": int(deleted)})
 
 
 def fetch_kommati_links(kommati_id):
@@ -247,31 +251,34 @@ def update_kommati(kommati_id, titlos, xronia=None, extra_info=None, synthetis_i
 
 
 def delete_kommati(kommati_id):
-    with get_engine().begin() as conn:
-        conn.execute(text("DELETE FROM KommatiaEkdilosis WHERE KommatiID = :id"), {"id": kommati_id})
-        conn.execute(text("DELETE FROM KommatiaSynthetes WHERE KommatiID = :id"), {"id": kommati_id})
-        conn.execute(text("DELETE FROM KommatiaStixourgoi WHERE KommatiID = :id"), {"id": kommati_id})
-        conn.execute(text("DELETE FROM Kommati WHERE KommatiID = :id"), {"id": kommati_id})
+    execute("UPDATE Kommati SET IsDeleted = 1 WHERE KommatiID = :id", {"id": kommati_id})
+
+
+def restore_kommati(kommati_id):
+    execute("UPDATE Kommati SET IsDeleted = 0 WHERE KommatiID = :id", {"id": kommati_id})
 
 
 # =========================================================================
 # Ekdilosi (Prova / Synavlia)
 # =========================================================================
 
-def fetch_ekdiloseis():
+def fetch_ekdiloseis(deleted=False):
     query = """
         SELECT e.EkdilosiID, e.EventType, e.Imerominia, e.ExtraInfo,
                s.Titlos, s.Xoros, s.FolderSynavlias, p.TyposProvas,
                (SELECT COUNT(*) FROM SymmetoxesEkdilosis se
-                WHERE se.EkdilosiID = e.EkdilosiID AND se.Parousia = 1) AS ParousesCount,
+                JOIN Atomo a ON se.AtomoID = a.AtomoID
+                WHERE se.EkdilosiID = e.EkdilosiID AND se.Parousia = 1 AND a.IsDeleted = 0) AS ParousesCount,
                (SELECT COUNT(*) FROM KommatiaEkdilosis ke
-                WHERE ke.EkdilosiID = e.EkdilosiID) AS KommatiaCount
+                JOIN Kommati k ON ke.KommatiID = k.KommatiID
+                WHERE ke.EkdilosiID = e.EkdilosiID AND k.IsDeleted = 0) AS KommatiaCount
         FROM Ekdilosi e
         LEFT JOIN Synavlia s ON e.EkdilosiID = s.EkdilosiID
         LEFT JOIN Prova p ON e.EkdilosiID = p.EkdilosiID
+        WHERE e.IsDeleted = :deleted
         ORDER BY e.Imerominia DESC
     """
-    return read_df(query)
+    return read_df(query, {"deleted": int(deleted)})
 
 
 def add_prova(imerominia, extra_info=None, typos_provas="Κανονική"):
@@ -329,12 +336,11 @@ def update_ekdilosi(ekdilosi_id, imerominia, extra_info=None, typos_provas=None,
 
 
 def delete_ekdilosi(ekdilosi_id):
-    with get_engine().begin() as conn:
-        conn.execute(text("DELETE FROM SymmetoxesEkdilosis WHERE EkdilosiID = :id"), {"id": ekdilosi_id})
-        conn.execute(text("DELETE FROM KommatiaEkdilosis WHERE EkdilosiID = :id"), {"id": ekdilosi_id})
-        conn.execute(text("DELETE FROM Prova WHERE EkdilosiID = :id"), {"id": ekdilosi_id})
-        conn.execute(text("DELETE FROM Synavlia WHERE EkdilosiID = :id"), {"id": ekdilosi_id})
-        conn.execute(text("DELETE FROM Ekdilosi WHERE EkdilosiID = :id"), {"id": ekdilosi_id})
+    execute("UPDATE Ekdilosi SET IsDeleted = 1 WHERE EkdilosiID = :id", {"id": ekdilosi_id})
+
+
+def restore_ekdilosi(ekdilosi_id):
+    execute("UPDATE Ekdilosi SET IsDeleted = 0 WHERE EkdilosiID = :id", {"id": ekdilosi_id})
 
 
 # =========================================================================
@@ -346,7 +352,7 @@ def fetch_symmetoxes(ekdilosi_id):
         SELECT se.SymmetoxiID, se.AtomoID, a.Eponymo, a.Onoma, se.Parousia, se.ExtraInfo
         FROM SymmetoxesEkdilosis se
         JOIN Atomo a ON se.AtomoID = a.AtomoID
-        WHERE se.EkdilosiID = :id
+        WHERE se.EkdilosiID = :id AND a.IsDeleted = 0
         ORDER BY a.Eponymo, a.Onoma
     """
     return read_df(query, {"id": ekdilosi_id})
@@ -377,7 +383,7 @@ def fetch_kommatia_ekdilosis(ekdilosi_id):
         SELECT ke.KommatiEkdilosiID, ke.KommatiID, k.Titlos, ke.ExtraInfo
         FROM KommatiaEkdilosis ke
         JOIN Kommati k ON ke.KommatiID = k.KommatiID
-        WHERE ke.EkdilosiID = :id
+        WHERE ke.EkdilosiID = :id AND k.IsDeleted = 0
         ORDER BY k.Titlos
     """
     return read_df(query, {"id": ekdilosi_id})

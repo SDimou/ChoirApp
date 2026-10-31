@@ -47,6 +47,7 @@ navigation via `st.navigation` over pages in [views/](views/):
   (SymmetoxesEkdilosis), and per-event repertoire (KommatiaEkdilosis)
 - [views/anafora_data.py](views/anafora_data.py) — reference data CRUD: voice sections,
   composers, lyricists
+- [views/sbismena.py](views/sbismena.py) — soft-deleted events, members and pieces, with restore
 
 **Data layer**: [database.py](database.py) is the sole DB access point — every view imports
 functions from it, none run SQL directly. All queries go through raw parameterized SQL via
@@ -76,9 +77,12 @@ file's header, in Greek):
    unified junction tables keyed on `Ekdilosi`, so rehearsals and concerts share one pair of
    link tables instead of needing separate ones per event type.
 
-Deletes that touch entities referenced elsewhere (e.g. `delete_atomo`, `delete_kommati`,
-`delete_ekdilosi`) must delete dependent rows first, in FK-dependency order, inside one
-transaction — follow the existing functions' ordering when adding new cascading deletes.
+Soft delete: `Ekdilosi`, `Atomo` and `Kommati` have an `IsDeleted` bit. `delete_atomo`,
+`delete_kommati` and `delete_ekdilosi` only set it to 1, never `DELETE`, so junction rows stay
+intact and come back on restore from [views/sbismena.py](views/sbismena.py). Every query on
+these tables must filter `IsDeleted = 0`, including joins through the junction tables. All
+other deletes are permanent, and soft-deleted rows still block lookup deletes (`Foni`,
+`Synthetis`, `Stixourgos`) via FK.
 
 ## UI patterns used across views
 
@@ -90,6 +94,8 @@ transaction — follow the existing functions' ordering when adding new cascadin
   [views/kommatia.py](views/kommatia.py).
 - `st.dialog` modals for multi-step create/detail flows (new event, event detail with tabs
   for attendance and repertoire) — see [views/ekdiloseis.py](views/ekdiloseis.py).
+- Every delete button asks for confirmation: `confirm_delete_dialog` in [utils.py](utils.py),
+  or `st.popover` when already inside a dialog (Streamlit has no nested dialogs).
 - Deletes that violate FK constraints (e.g. deleting a `Foni`/`Synthetis`/`Stixourgos` still
   in use) are caught as `sqlalchemy.exc.IntegrityError` and surfaced as an `st.error`, not
   prevented up front — follow this pattern rather than pre-checking references.

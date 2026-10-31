@@ -14,9 +14,38 @@ from database import (
     fetch_synthetes,
     update_foni,
 )
-from utils import person_label
+from utils import confirm_delete_dialog, person_label
 
 st.title("⚙️ Στοιχεία Αναφοράς")
+
+
+def _delete_or_error(delete, error_message):
+    try:
+        delete()
+    except IntegrityError:
+        st.error(error_message)
+        st.stop()
+
+
+def _save_foni(edited, delete_ids):
+    for foni_id in delete_ids:
+        _delete_or_error(
+            lambda: delete_foni(int(foni_id)),
+            "Δεν μπορεί να διαγραφεί φωνή που χρησιμοποιείται από χορωδό (ενεργό ή σβησμένο).",
+        )
+
+    for _, row in edited.iterrows():
+        if not row["FoniSynt"]:
+            continue
+        descr = None if pd.isnull(row["FoniDescr"]) else row["FoniDescr"]
+        sort_order = 0 if pd.isnull(row["SortOrder"]) else int(row["SortOrder"])
+        if pd.isnull(row["FoniID"]):
+            add_foni(row["FoniSynt"], descr, sort_order)
+        else:
+            update_foni(int(row["FoniID"]), row["FoniSynt"], descr, sort_order)
+    st.success("Οι φωνές αποθηκεύτηκαν!")
+    st.rerun()
+
 
 tab_foni, tab_synthetes, tab_stixourgoi = st.tabs(["🎤 Φωνές", "🎹 Συνθέτες", "✍️ Στιχουργοί"])
 
@@ -37,26 +66,15 @@ with tab_foni:
         key="foni_editor",
     )
     if st.button("💾 Αποθήκευση Φωνών"):
-        current_ids = set(df["FoniID"])
-        edited_ids = set(edited["FoniID"].dropna())
-        try:
-            for foni_id in current_ids - edited_ids:
-                delete_foni(int(foni_id))
-        except IntegrityError:
-            st.error("Δεν μπορεί να διαγραφεί φωνή που χρησιμοποιείται ήδη από χορωδό.")
-            st.stop()
-
-        for _, row in edited.iterrows():
-            if not row["FoniSynt"]:
-                continue
-            descr = None if pd.isnull(row["FoniDescr"]) else row["FoniDescr"]
-            sort_order = 0 if pd.isnull(row["SortOrder"]) else int(row["SortOrder"])
-            if pd.isnull(row["FoniID"]):
-                add_foni(row["FoniSynt"], descr, sort_order)
-            else:
-                update_foni(int(row["FoniID"]), row["FoniSynt"], descr, sort_order)
-        st.success("Οι φωνές αποθηκεύτηκαν!")
-        st.rerun()
+        delete_ids = set(df["FoniID"]) - set(edited["FoniID"].dropna())
+        if delete_ids:
+            names = ", ".join(df[df["FoniID"].isin(delete_ids)]["FoniSynt"])
+            confirm_delete_dialog(
+                f"Να διαγραφούν οριστικά οι φωνές: {names};",
+                lambda: _save_foni(edited, delete_ids),
+            )
+        else:
+            _save_foni(edited, delete_ids)
 
 with tab_synthetes:
     df = fetch_synthetes()
@@ -82,12 +100,14 @@ with tab_synthetes:
         }
         to_delete = st.selectbox("Διαγραφή συνθέτη:", list(options.keys()), key="del_synthetis_sb")
         if st.button("🗑️ Διαγραφή Συνθέτη"):
-            try:
-                delete_synthetis(options[to_delete])
-                st.success("Ο συνθέτης διαγράφηκε!")
-                st.rerun()
-            except IntegrityError:
-                st.error("Δεν μπορεί να διαγραφεί — ο συνθέτης χρησιμοποιείται σε κάποιο κομμάτι.")
+            synthetis_id = options[to_delete]
+            confirm_delete_dialog(
+                f"Να διαγραφεί οριστικά ο συνθέτης «{to_delete}»;",
+                lambda: _delete_or_error(
+                    lambda: delete_synthetis(synthetis_id),
+                    "Δεν μπορεί να διαγραφεί — ο συνθέτης χρησιμοποιείται σε κάποιο κομμάτι (ενεργό ή σβησμένο).",
+                ),
+            )
 
 with tab_stixourgoi:
     df = fetch_stixourgoi()
@@ -113,9 +133,11 @@ with tab_stixourgoi:
         }
         to_delete = st.selectbox("Διαγραφή στιχουργού:", list(options.keys()), key="del_stixourgos_sb")
         if st.button("🗑️ Διαγραφή Στιχουργού"):
-            try:
-                delete_stixourgos(options[to_delete])
-                st.success("Ο στιχουργός διαγράφηκε!")
-                st.rerun()
-            except IntegrityError:
-                st.error("Δεν μπορεί να διαγραφεί — ο στιχουργός χρησιμοποιείται σε κάποιο κομμάτι.")
+            stixourgos_id = options[to_delete]
+            confirm_delete_dialog(
+                f"Να διαγραφεί οριστικά ο στιχουργός «{to_delete}»;",
+                lambda: _delete_or_error(
+                    lambda: delete_stixourgos(stixourgos_id),
+                    "Δεν μπορεί να διαγραφεί — ο στιχουργός χρησιμοποιείται σε κάποιο κομμάτι (ενεργό ή σβησμένο).",
+                ),
+            )

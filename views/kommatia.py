@@ -10,7 +10,7 @@ from database import (
     fetch_synthetes,
     update_kommati,
 )
-from utils import person_label
+from utils import confirm_delete_dialog, person_label
 
 st.title("🎼 Μουσικά Κομμάτια")
 
@@ -99,6 +99,8 @@ with col_save:
         st.rerun()
 with col_delete:
     if not is_new and st.button("🗑️ Διαγραφή", width="stretch"):
-        delete_kommati(int(current["KommatiID"]))
-        st.success(f"Το κομμάτι '{selected_title}' διαγράφηκε!")
-        st.rerun()
+        confirm_delete_dialog(
+            f"Να διαγραφεί το κομμάτι «{selected_title}»; "
+            "Θα μπορεί να επαναφερθεί από τις Σβησμένες Εγγραφές.",
+            lambda: delete_kommati(int(current["KommatiID"])),
+        )

@@ -1,6 +1,7 @@
 """Shared display helpers used across ChoirApp pages."""
 
 import pandas as pd
+import streamlit as st
 
 GREEK_MONTHS = [
     "Ιανουάριος", "Φεβρουάριος", "Μάρτιος", "Απρίλιος", "Μάιος", "Ιούνιος",
@@ -18,6 +19,21 @@ def format_date(d):
 def person_label(onoma, eponymo):
     """Return 'Onoma Eponymo' for display — name first, trimmed of stray whitespace."""
     return f"{onoma or ''} {eponymo or ''}".strip()
+
+
+@st.dialog("Επιβεβαίωση Διαγραφής")
+def confirm_delete_dialog(message, on_confirm):
+    """Εκτελεί το `on_confirm` μόνο μετά από επιβεβαίωση.
+
+    Το Streamlit δεν επιτρέπει dialog μέσα σε dialog: μέσα σε popup χρησιμοποιείται st.popover."""
+    st.warning(message)
+    col_yes, col_no = st.columns(2)
+    if col_yes.button("🗑️ Διαγραφή", key="confirm_delete_yes", type="primary", width="stretch"):
+        on_confirm()
+        st.toast("Διαγράφηκε.")
+        st.rerun()
+    if col_no.button("Ακύρωση", key="confirm_delete_no", width="stretch"):
+        st.rerun()
 
 
 def select_folder(initialdir=None):

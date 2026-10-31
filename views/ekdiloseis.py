@@ -197,12 +197,14 @@ def _view_ekdilosi_body(ekdilosi_id, row, is_prova):
                 key=f"view_parousies_{ekdilosi_id}",
             )
             selected_rows = event.selection["rows"]
-            if st.button(
+            with st.popover(
                 "🗑️ Αφαίρεση επιλεγμένων", key=f"rm_parousies_{ekdilosi_id}", disabled=not selected_rows
             ):
-                for i in selected_rows:
-                    set_parousia(ekdilosi_id, int(df_part.loc[i, "AtomoID"]), False)
-                st.rerun()
+                st.warning(f"Να αφαιρεθούν {len(selected_rows)} συμμετέχοντες από την εκδήλωση;")
+                if st.button("✔️ Ναι, αφαίρεση", key=f"confirm_rm_parousies_{ekdilosi_id}", type="primary"):
+                    for i in selected_rows:
+                        set_parousia(ekdilosi_id, int(df_part.loc[i, "AtomoID"]), False)
+                    st.rerun()
 
         with st.container(horizontal_alignment="right"):
             st.metric("Σύνολο Συμμετεχόντων", len(df_part), width="content")
@@ -228,9 +230,15 @@ def _view_ekdilosi_body(ekdilosi_id, row, is_prova):
             for _, r in df_linked.iterrows():
                 col_a, col_b = st.columns([5, 1])
                 col_a.write(r["Titlos"])
-                if col_b.button("🗑️", key=f"rm_kommati_{ekdilosi_id}_{r['KommatiEkdilosiID']}"):
-                    remove_kommati_apo_ekdilosi(ekdilosi_id, int(r["KommatiID"]))
-                    st.rerun()
+                with col_b.popover("🗑️", key=f"rm_kommati_{ekdilosi_id}_{r['KommatiEkdilosiID']}"):
+                    st.warning(f"Να αφαιρεθεί το «{r['Titlos']}» από την εκδήλωση;")
+                    if st.button(
+                        "✔️ Ναι, αφαίρεση",
+                        key=f"confirm_rm_kommati_{ekdilosi_id}_{r['KommatiEkdilosiID']}",
+                        type="primary",
+                    ):
+                        remove_kommati_apo_ekdilosi(ekdilosi_id, int(r["KommatiID"]))
+                        st.rerun()
 
         with st.container(horizontal_alignment="right"):
             st.metric("Σύνολο Κομματιών", len(df_linked), width="content")
@@ -241,7 +249,7 @@ def _view_ekdilosi_body(ekdilosi_id, row, is_prova):
     with st.popover("✏️ Επεξεργασία", width="stretch"):
         _edit_form(ekdilosi_id, row, is_prova)
     with st.popover(f"🗑️ Διαγραφή {label}", width="stretch"):
-        st.warning("Η διαγραφή είναι μόνιμη. Να συνεχίσω;")
+        st.warning("Να διαγραφεί; Θα μπορεί να επαναφερθεί από τις Σβησμένες Εγγραφές.")
         if st.button("✔️ Ναι, διαγραφή", key=f"confirm_delete_ekdilosi_{ekdilosi_id}", type="primary"):
             delete_ekdilosi(ekdilosi_id)
             st.rerun()

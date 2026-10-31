@@ -2,6 +2,7 @@ import pandas as pd
 import streamlit as st
 
 from database import add_atomo, delete_atomo, fetch_atoma, fetch_foni, update_atomo
+from utils import confirm_delete_dialog
 
 st.title("🧑‍🤝‍🧑 Χορωδοί")
 
@@ -88,11 +89,9 @@ edited = st.data_editor(
     key="atoma_editor",
 )
 
-if st.button("💾 Αποθήκευση Αλλαγών"):
-    current_ids = set(df_shown["AtomoID"])
-    edited_ids = set(edited["AtomoID"].dropna())
 
-    for atomo_id in current_ids - edited_ids:
+def _save_atoma(delete_ids):
+    for atomo_id in delete_ids:
         delete_atomo(int(atomo_id))
 
     for _, row in edited.iterrows():
@@ -109,3 +108,17 @@ if st.button("💾 Αποθήκευση Αλλαγών"):
 
     st.success("Οι αλλαγές αποθηκεύτηκαν!")
     st.rerun()
+
+
+if st.button("💾 Αποθήκευση Αλλαγών"):
+    delete_ids = set(df_shown["AtomoID"]) - set(edited["AtomoID"].dropna())
+    if delete_ids:
+        df_delete = df_shown[df_shown["AtomoID"].isin(delete_ids)]
+        names = ", ".join(f"{r['Eponymo']} {r['Onoma']}" for _, r in df_delete.iterrows())
+        confirm_delete_dialog(
+            f"Να διαγραφούν οι χορωδοί: {names}; "
+            "Θα μπορούν να επαναφερθούν από τις Σβησμένες Εγγραφές.",
+            lambda: _save_atoma(delete_ids),
+        )
+    else:
+        _save_atoma(delete_ids)

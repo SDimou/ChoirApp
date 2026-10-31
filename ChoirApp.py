@@ -10,6 +10,7 @@ pages = {
     ],
     "Ρυθμίσεις": [
         st.Page("views/anafora_data.py", title="Στοιχεία Αναφοράς", icon="⚙️"),
+        st.Page("views/sbismena.py", title="Σβησμένες Εγγραφές", icon="🗑️"),
     ],
 }
 

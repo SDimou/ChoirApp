@@ -83,6 +83,7 @@ CREATE TABLE dbo.Atomo (
     Email               NVARCHAR(200)     NULL,
     ImerominiaEggrafis  DATE              NULL,   -- ημερομηνία εγγραφής χορωδού
     ImerominiaApoxorisis DATE             NULL,   -- ημερομηνία αποχώρησης (NULL = ενεργός)
+    IsDeleted           BIT               NOT NULL CONSTRAINT DF_Atomo_IsDeleted DEFAULT (0),  -- soft delete
     CONSTRAINT PK_Atomo PRIMARY KEY (AtomoID),
     CONSTRAINT FK_Atomo_Foni FOREIGN KEY (FoniID)
         REFERENCES dbo.Foni (FoniID)
@@ -100,6 +101,7 @@ CREATE TABLE dbo.Ekdilosi (
     EventType   CHAR(1)           NOT NULL,   -- 'P' = Πρόβα, 'S' = Συναυλία
     Imerominia  DATE              NOT NULL,
     ExtraInfo   NVARCHAR(1000)    NULL,
+    IsDeleted   BIT               NOT NULL CONSTRAINT DF_Ekdilosi_IsDeleted DEFAULT (0),  -- soft delete
     CONSTRAINT PK_Ekdilosi PRIMARY KEY (EkdilosiID),
     CONSTRAINT CK_Ekdilosi_EventType CHECK (EventType IN ('P', 'S')),
     -- Επιτρέπει στους υποτύπους (Prova/Synavlia) να κάνουν FK σε (ID, Type)
@@ -184,6 +186,7 @@ CREATE TABLE dbo.Kommati (
     Titlos      NVARCHAR(200)     NOT NULL,
     Xronia      INT               NULL,        -- έτος σύνθεσης/έκδοσης
     ExtraInfo   NVARCHAR(1000)    NULL,
+    IsDeleted   BIT               NOT NULL CONSTRAINT DF_Kommati_IsDeleted DEFAULT (0),  -- soft delete
     CONSTRAINT PK_Kommati PRIMARY KEY (KommatiID)
 );
 GO
